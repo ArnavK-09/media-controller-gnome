@@ -47,6 +47,8 @@ export const MediaCard = GObject.registerClass({
     Signals: {
         /* Raised the player's window; the menu should close. */
         'activated': {},
+        /* The gear button was pressed. */
+        'open-preferences': {},
     },
 }, class MediaCard extends St.BoxLayout {
     _init(artCache, settings) {
@@ -61,6 +63,7 @@ export const MediaCard = GObject.registerClass({
         this._player = null;
         this._playerSignals = [];
         this._timeoutId = 0;
+        this._seekRefreshId = 0;
         this._dragging = false;
         this._active = false;
         this._destroyed = false;
@@ -76,6 +79,7 @@ export const MediaCard = GObject.registerClass({
         this._settingsSignals = [
             this._settings.connect('changed::card-show-art', () => this.sync()),
             this._settings.connect('changed::card-show-seek-bar', () => this.sync()),
+            this._settings.connect('changed::card-show-seek-buttons', () => this.sync()),
             this._settings.connect('changed::card-width', () => this._applyWidth()),
         ];
         this._applyWidth();
@@ -119,6 +123,12 @@ export const MediaCard = GObject.registerClass({
         textBox.add_child(this._subtitleLabel);
         header.add_child(textBox);
 
+        const actions = new St.BoxLayout({
+            style_class: 'mc-card-actions',
+            orientation: Clutter.Orientation.HORIZONTAL,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+
         this._appButton = new St.Button({
             style_class: 'mc-app-button',
             can_focus: true,
@@ -130,8 +140,18 @@ export const MediaCard = GObject.registerClass({
             this._player?.raise();
             this.emit('activated');
         });
-        header.add_child(this._appButton);
+        actions.add_child(this._appButton);
 
+        this._prefsButton = new St.Button({
+            style_class: 'mc-app-button',
+            can_focus: true,
+            y_align: Clutter.ActorAlign.CENTER,
+            child: new St.Icon({icon_name: 'emblem-system-symbolic', icon_size: 16}),
+        });
+        this._prefsButton.connect('clicked', () => this.emit('open-preferences'));
+        actions.add_child(this._prefsButton);
+
+        header.add_child(actions);
         this.add_child(header);
     }
 
@@ -193,17 +213,47 @@ export const MediaCard = GObject.registerClass({
         });
 
         this._prevButton = iconButton('media-skip-backward-symbolic', 'mc-control-button');
+        this._backButton = iconButton('media-seek-backward-symbolic', 'mc-control-button mc-seek-button');
         this._playButton = iconButton('media-playback-start-symbolic', 'mc-control-button mc-play-button');
+        this._forwardButton = iconButton('media-seek-forward-symbolic', 'mc-control-button mc-seek-button');
         this._nextButton = iconButton('media-skip-forward-symbolic', 'mc-control-button');
 
         this._prevButton.connect('clicked', () => this._player?.previous());
         this._playButton.connect('clicked', () => this._player?.playPause());
         this._nextButton.connect('clicked', () => this._player?.next());
+        this._backButton.connect('clicked', () => this._skip(-1));
+        this._forwardButton.connect('clicked', () => this._skip(1));
 
         controls.add_child(this._prevButton);
+        controls.add_child(this._backButton);
         controls.add_child(this._playButton);
+        controls.add_child(this._forwardButton);
         controls.add_child(this._nextButton);
         this.add_child(controls);
+    }
+
+    /**
+     * @param {number} direction -1 to rewind, 1 to skip ahead
+     */
+    _skip(direction) {
+        if (!this._player)
+            return;
+        const step = this._settings.get_int('seek-step-seconds') * US_PER_SECOND;
+        this._player.seek(direction * step);
+
+        /* Players that do not emit Seeked would otherwise leave the slider
+         * stale until the next poll — and there is no poll while paused. */
+        this._refreshPositionSoon();
+    }
+
+    _refreshPositionSoon() {
+        if (this._seekRefreshId)
+            GLib.Source.remove(this._seekRefreshId);
+        this._seekRefreshId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => {
+            this._seekRefreshId = 0;
+            this._refreshPosition();
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     _applyWidth() {
@@ -342,6 +392,8 @@ export const MediaCard = GObject.registerClass({
             this._subtitleLabel.visible = false;
             this._seekBox.visible = false;
             this._appButton.visible = false;
+            this._backButton.visible = false;
+            this._forwardButton.visible = false;
             this._length = 0;
             this._updateArt();
             this._updateTimer();
@@ -376,6 +428,12 @@ export const MediaCard = GObject.registerClass({
         this._seekBox.visible = showSeek;
         this._setSensitive(this._slider, player.canSeek);
 
+        /* Skipping needs Seek(); a player without it gets no skip buttons. */
+        const showSkip = this._settings.get_boolean('card-show-seek-buttons') &&
+            player.canSeek;
+        this._backButton.visible = showSkip;
+        this._forwardButton.visible = showSkip;
+
         this._updateArt();
         this._updateSlider();
         this._updateTimer();
@@ -392,6 +450,10 @@ export const MediaCard = GObject.registerClass({
         if (this._timeoutId) {
             GLib.Source.remove(this._timeoutId);
             this._timeoutId = 0;
+        }
+        if (this._seekRefreshId) {
+            GLib.Source.remove(this._seekRefreshId);
+            this._seekRefreshId = 0;
         }
         this._disconnectPlayer();
         for (const id of this._settingsSignals)

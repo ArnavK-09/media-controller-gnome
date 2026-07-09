@@ -311,6 +311,22 @@ export const MprisPlayer = GObject.registerClass({
     }
 
     /**
+     * Seek relative to the current position. Negative offsets rewind; the spec
+     * says players clamp to the start of the track themselves.
+     *
+     * @param {number} offset in microseconds
+     */
+    seek(offset) {
+        if (!this._playerProxy || !this.canSeek)
+            return;
+        try {
+            this._playerProxy.SeekRemote(offset, () => {});
+        } catch (e) {
+            console.warn(`media-controller: relative seek failed: ${e.message}`);
+        }
+    }
+
+    /**
      * @param {number} position absolute position in microseconds
      */
     setPosition(position) {

@@ -35,7 +35,7 @@ function truncate(text, maxLength) {
 
 const MediaIndicator = GObject.registerClass(
 class MediaIndicator extends PanelMenu.Button {
-    _init(settings, artCache, manager) {
+    _init(extension, settings, artCache, manager) {
         super._init(0.5, 'Media Controller');
 
         this._settings = settings;
@@ -55,6 +55,10 @@ class MediaIndicator extends PanelMenu.Button {
 
         this._card = new MediaCard(artCache, settings);
         this._card.connect('activated', () => this.menu.close());
+        this._card.connect('open-preferences', () => {
+            this.menu.close();
+            extension.openPreferences();
+        });
 
         this.menu.box.add_style_class_name('mc-card-menu');
         const item = new PopupMenu.PopupBaseMenuItem({
@@ -237,7 +241,7 @@ export default class MediaControllerExtension extends Extension {
         this._settings = this.getSettings();
         this._artCache = new ArtCache();
         this._manager = new MprisManager();
-        this._indicator = new MediaIndicator(this._settings, this._artCache, this._manager);
+        this._indicator = new MediaIndicator(this, this._settings, this._artCache, this._manager);
 
         const {box, index} = this._placement();
         Main.panel.addToStatusArea(ROLE, this._indicator, index, box);

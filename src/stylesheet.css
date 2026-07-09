@@ -94,6 +94,10 @@
   font-size: 0.9em;
 }
 
+.mc-card-actions {
+  spacing: 2px;
+}
+
 .mc-app-button {
   border-radius: 99px;
   padding: 6px;
@@ -125,17 +129,21 @@
 /* Buttons also carry .message-media-control, which the theme styles for hover,
  * active and insensitive states in both light and dark. */
 .mc-card-controls {
-  spacing: 16px;
+  spacing: 6px;
   padding: 2px 0 0 0;
 }
 
 .mc-control-button {
   border-radius: 99px;
-  padding: 8px 14px;
+  padding: 8px 12px;
 }
 
 .mc-control-button StIcon {
   icon-size: 22px;
+}
+
+.mc-seek-button StIcon {
+  icon-size: 18px;
 }
 
 .mc-play-button {

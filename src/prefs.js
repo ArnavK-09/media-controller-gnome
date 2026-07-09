@@ -10,13 +10,18 @@ import {ExtensionPreferences, gettext as _} from
 
 /* Index order must match the enum nicks in the GSettings schema. */
 const POSITIONS = ['far-left', 'left', 'center', 'right', 'far-right'];
-const POSITION_LABELS = [
-    _('Far left'),
-    _('Left'),
-    _('Center'),
-    _('Right'),
-    _('Far right'),
-];
+
+/* Must be a function, not a top-level constant: gettext resolves the calling
+ * extension from the stack, and at module scope no extension is registered yet. */
+function positionLabels() {
+    return [
+        _('Far left'),
+        _('Left'),
+        _('Center'),
+        _('Right'),
+        _('Far right'),
+    ];
+}
 
 export default class MediaControllerPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
@@ -61,7 +66,7 @@ export default class MediaControllerPreferences extends ExtensionPreferences {
 
         const positionRow = new Adw.ComboRow({
             title: _('Position'),
-            model: Gtk.StringList.new(POSITION_LABELS),
+            model: Gtk.StringList.new(positionLabels()),
         });
         positionRow.selected = Math.max(0,
             POSITIONS.indexOf(settings.get_string('panel-position')));
@@ -121,6 +126,17 @@ export default class MediaControllerPreferences extends ExtensionPreferences {
         group.add(this._spinRow(settings, 'card-width',
             _('Card width'), _('In pixels.'), 280, 560, 10));
         page.add(group);
+
+        const skip = new Adw.PreferencesGroup({
+            title: _('Skip buttons'),
+            description: _('Jump backward and forward within the current track.'),
+        });
+        skip.add(this._switchRow(settings, 'card-show-seek-buttons',
+            _('Show skip buttons'),
+            _('Only shown for players that support seeking.')));
+        skip.add(this._spinRow(settings, 'seek-step-seconds',
+            _('Skip amount'), _('In seconds.'), 2, 20, 1));
+        page.add(skip);
 
         return page;
     }

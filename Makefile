@@ -1,4 +1,4 @@
-UUID    = media-controller@naimur.dev
+UUID    = media-controller@naimur
 SRC     = src
 INSTALL_DIR = $(HOME)/.local/share/gnome-shell/extensions/$(UUID)
 SOURCES = $(SRC)/extension.js $(SRC)/prefs.js $(SRC)/mpris.js $(SRC)/mediaCard.js \

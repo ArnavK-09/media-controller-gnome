@@ -76,6 +76,17 @@
       <summary>Show the seek bar in the card</summary>
     </key>
 
+    <key name="card-show-seek-buttons" type="b">
+      <default>true</default>
+      <summary>Show the skip-back and skip-forward buttons in the card</summary>
+    </key>
+
+    <key name="seek-step-seconds" type="i">
+      <default>10</default>
+      <range min="2" max="20"/>
+      <summary>Seconds skipped by the seek buttons</summary>
+    </key>
+
     <key name="card-width" type="i">
       <default>340</default>
       <range min="280" max="560"/>
