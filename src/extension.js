@@ -85,7 +85,7 @@ class MediaIndicator extends PanelMenu.Button {
             'changed::show-player-icon',
             'changed::show-title',
             'changed::show-artist',
-            'changed::max-text-length',
+            'changed::panel-text-width',
             'changed::scroll-text',
             'changed::scroll-speed',
             'changed::hide-when-inactive',
@@ -232,9 +232,10 @@ class MediaIndicator extends PanelMenu.Button {
         this.container.visible = true;
 
         const text = this._panelText(player);
+        this._label.setWidth(this._settings.get_int('panel-text-width'));
         this._label.setScrolling(this._settings.get_boolean('scroll-text'),
             this._settings.get_int('scroll-speed'));
-        this._label.setText(text, this._settings.get_int('max-text-length'));
+        this._label.setText(text);
         this._label.visible = text.length > 0;
 
         this._playerIcon.visible = this._settings.get_boolean('show-player-icon');

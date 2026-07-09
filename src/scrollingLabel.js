@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* scrollingLabel.js
  *
- * A panel label that either ellipsizes long text or scrolls it past a fixed
- * window, carousel style: the text is drawn twice so the tail of one copy is
- * still on screen while the head of the next scrolls in.
+ * The panel's track label. It occupies a fixed width and either ellipsizes
+ * text that does not fit or scrolls it, carousel style: the text is drawn
+ * twice so the tail of one copy is still on screen while the head of the next
+ * scrolls in.
  */
 
 import Clutter from 'gi://Clutter';
@@ -18,13 +19,6 @@ const GAP = 32;
 /* Long enough to read the beginning of the title before it moves off. */
 const PAUSE_MS = 1200;
 
-/** @param {string} text @param {number} maxLength */
-export function truncate(text, maxLength) {
-    if (text.length <= maxLength)
-        return text;
-    return `${text.substring(0, Math.max(1, maxLength - 1)).trimEnd()}…`;
-}
-
 export const ScrollingLabel = GObject.registerClass(
 class ScrollingLabel extends St.Widget {
     _init(styleClass) {
@@ -37,12 +31,11 @@ class ScrollingLabel extends St.Widget {
         });
 
         this._text = '';
-        this._maxChars = 28;
+        this._width = 200;
         this._scrolling = false;
         this._speed = 30;
 
-        /* Measured in _update(); -1 means "not scrolling, natural width". */
-        this._windowWidth = -1;
+        /* The scroll distance currently animating; 0 when nothing is moving. */
         this._distance = 0;
 
         this._box = new St.BoxLayout({
@@ -65,15 +58,19 @@ class ScrollingLabel extends St.Widget {
         this.connect('destroy', () => this._onDestroy());
     }
 
-    /**
-     * @param {string} text full, untruncated text
-     * @param {number} maxChars how much of it stays visible at once
-     */
-    setText(text, maxChars) {
-        if (text === this._text && maxChars === this._maxChars)
+    /** @param {string} text */
+    setText(text) {
+        if (text === this._text)
             return;
         this._text = text;
-        this._maxChars = maxChars;
+        this._update(true);
+    }
+
+    /** @param {number} width the fixed width of the label, in pixels */
+    setWidth(width) {
+        if (width === this._width)
+            return;
+        this._width = width;
         this._update(true);
     }
 
@@ -89,63 +86,53 @@ class ScrollingLabel extends St.Widget {
         this._update(true);
     }
 
-    /* Preferred width of `text` in this label's font. Swapping the text back
-     * before returning keeps it invisible: nothing repaints mid-function. */
-    _measure(text) {
-        const clutterText = this._first.clutter_text;
-        const saved = clutterText.text;
-        clutterText.text = text;
-        const [, natural] = clutterText.get_preferred_width(-1);
-        clutterText.text = saved;
-        return natural;
+    /* Preferred width of the text in this label's font. */
+    _textWidth() {
+        return this._first.clutter_text.get_preferred_width(-1)[1];
     }
 
     /** @param {boolean} force restart the animation even if the geometry matches */
     _update(force = false) {
-        if (!this._scrolling) {
-            this._stop();
-            this._first.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-            this._first.text = truncate(this._text, this._maxChars);
-            this._second.visible = false;
-            this._windowWidth = -1;
-            this.set_width(-1);
-            return;
-        }
-
-        this._first.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
         this._first.text = this._text;
-        this._second.text = this._text;
+        this.set_width(this._width);
 
-        const fullWidth = this._measure(this._text);
-        const windowWidth = this._measure(this._text.slice(0, this._maxChars));
-
-        /* Text that already fits is just a plain label. */
-        if (fullWidth <= windowWidth) {
-            this._stop();
-            this._second.visible = false;
-            this._windowWidth = -1;
-            this.set_width(-1);
+        const fullWidth = this._textWidth();
+        if (!this._scrolling || fullWidth <= this._width) {
+            this._showStatic();
             return;
         }
 
         const distance = fullWidth + GAP;
         /* A style-changed that did not actually move anything must not restart
          * the animation, or the title would jump back to the start. */
-        if (!force && this._windowWidth === windowWidth && this._distance === distance)
+        if (!force && this._distance === distance)
             return;
 
         this._stop();
+        this._first.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
+        /* Let the copies run to their full width and off the clipped edge. */
+        this._first.set_width(-1);
+        this._second.text = this._text;
         this._second.visible = true;
-        this._windowWidth = windowWidth;
         this._distance = distance;
-        this.set_width(windowWidth);
         this._start();
+    }
+
+    /* Scrolling off, or the text already fits: one ellipsized copy. Pinning it
+     * to the window is what makes Pango add the ellipsis — left at its natural
+     * width it would simply be cut off by the clip. */
+    _showStatic() {
+        this._stop();
+        this._first.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+        this._first.set_width(this._width);
+        this._second.visible = false;
+        this._distance = 0;
     }
 
     _start() {
         /* Respect the accessibility setting; the ellipsized copy stays readable. */
         if (!St.Settings.get().enable_animations) {
-            this._first.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+            this._showStatic();
             return;
         }
         this._loop();

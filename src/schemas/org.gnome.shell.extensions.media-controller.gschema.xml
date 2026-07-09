@@ -61,17 +61,17 @@
       <summary>Show the artist in the panel</summary>
     </key>
 
-    <key name="max-text-length" type="i">
-      <default>28</default>
-      <range min="6" max="80"/>
-      <summary>Maximum panel text length</summary>
-      <description>Panel text longer than this is truncated with an ellipsis.</description>
+    <key name="panel-text-width" type="i">
+      <default>200</default>
+      <range min="60" max="600"/>
+      <summary>Width of the panel text, in pixels</summary>
+      <description>The track text always occupies this width. Text that does not fit is truncated with an ellipsis, or scrolled when scroll-text is set.</description>
     </key>
 
     <key name="scroll-text" type="b">
       <default>false</default>
       <summary>Scroll panel text that does not fit</summary>
-      <description>Text longer than the maximum length loops past a fixed window instead of being truncated.</description>
+      <description>Text wider than panel-text-width loops past it instead of being truncated.</description>
     </key>
 
     <key name="scroll-speed" type="i">

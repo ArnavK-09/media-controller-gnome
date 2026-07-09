@@ -107,12 +107,12 @@ export default class MediaControllerPreferences extends ExtensionPreferences {
         text.add(this._switchRow(settings, 'show-player-icon', _('Player icon')));
         text.add(this._switchRow(settings, 'show-title', _('Title')));
         text.add(this._switchRow(settings, 'show-artist', _('Artist')));
-        text.add(this._spinRow(settings, 'max-text-length',
-            _('Maximum text length'),
-            _('How much text stays visible, in characters.'), 6, 80, 1));
+        text.add(this._spinRow(settings, 'panel-text-width',
+            _('Text width'),
+            _('In pixels. The track text always occupies this width.'), 60, 600, 10));
         text.add(this._switchRow(settings, 'scroll-text',
             _('Scroll long text'),
-            _('Loop longer text past the panel instead of cutting it off.')));
+            _('Loop text that does not fit instead of cutting it off.')));
 
         const speed = this._spinRow(settings, 'scroll-speed',
             _('Scrolling speed'), _('In pixels per second.'), 10, 120, 5);
