@@ -127,6 +127,7 @@ export const MprisPlayer = GObject.registerClass({
         this._iconCacheKey = null;
         this._iconCache = null;
         this._genericIcon = null;
+        this._metadata = null;
 
         this._playerProxy = null;
         this._appProxy = null;
@@ -141,8 +142,10 @@ export const MprisPlayer = GObject.registerClass({
                 return;
             }
             this._playerProxy = proxy;
-            this._propsChangedId = proxy.connect('g-properties-changed',
-                () => this.emit('changed'));
+            this._propsChangedId = proxy.connect('g-properties-changed', () => {
+                this._metadata = null;
+                this.emit('changed');
+            });
             this._seekedId = proxy.connectSignal('Seeked',
                 (_p, _sender, [position]) => this.emit('seeked', asNumber(position)));
             this.emit('changed');
@@ -164,11 +167,23 @@ export const MprisPlayer = GObject.registerClass({
         return this._playerProxy !== null;
     }
 
+    /**
+     * Reading `proxy.Metadata` deep-unpacks the whole a{sv} every time, and a
+     * single UI sync asks for half a dozen of its keys. Unpack it once per
+     * PropertiesChanged instead; the handler above drops the cache.
+     */
+    _metadataDict() {
+        if (this._metadata)
+            return this._metadata;
+        /* Nothing to cache until the proxy lands; it emits 'changed' when it does. */
+        if (!this._playerProxy)
+            return {};
+        this._metadata = this._playerProxy.Metadata ?? {};
+        return this._metadata;
+    }
+
     _meta(key) {
-        const metadata = this._playerProxy?.Metadata;
-        if (!metadata)
-            return null;
-        return unwrap(metadata[key]);
+        return unwrap(this._metadataDict()[key]);
     }
 
     get title() {
@@ -379,6 +394,7 @@ export const MprisPlayer = GObject.registerClass({
         this._seekedId = 0;
         this._playerProxy = null;
         this._appProxy = null;
+        this._metadata = null;
     }
 });
 
@@ -454,8 +470,15 @@ export const MprisManager = GObject.registerClass({
         const player = new MprisPlayer(busName);
         this._players.set(busName, player);
         this._playerSignals.set(busName, player.connect('changed', () => {
+            const wasActive = this._active === player;
+            /* Emits 'changed' itself when the active player flips. */
             this._selectActive();
-            this.emit('changed');
+
+            /* A background player updating its metadata is not news: only the
+             * player on screen forces a re-render, and only when _selectActive()
+             * has not already announced it. */
+            if (wasActive && this._active === player)
+                this.emit('changed');
         }));
     }
 
@@ -477,6 +500,16 @@ export const MprisManager = GObject.registerClass({
         player.destroy();
     }
 
+    /* Scans the map in place; `players` would allocate a fresh array per call,
+     * and this runs on every property change of every player. */
+    _find(predicate) {
+        for (const player of this._players.values()) {
+            if (predicate(player))
+                return player;
+        }
+        return null;
+    }
+
     /**
      * Prefer whatever is actually playing. Otherwise keep the current player so
      * the panel does not jump around when a background player updates metadata.
@@ -487,14 +520,11 @@ export const MprisManager = GObject.registerClass({
         if (!this._active || !this._players.has(this._active.busName))
             this._active = null;
 
-        if (!this._active?.isPlaying) {
-            const playing = this.players.find(p => p.isPlaying);
-            if (playing)
-                this._active = playing;
-        }
+        if (!this._active?.isPlaying)
+            this._active = this._find(p => p.isPlaying) ?? this._active;
 
         if (!this._active || !this._players.has(this._active.busName))
-            this._active = this.players.find(p => p.ready) ?? null;
+            this._active = this._find(p => p.ready);
 
         if (previous !== this._active)
             this.emit('changed');

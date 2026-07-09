@@ -29,6 +29,26 @@ const PANEL_POSITIONS = {
     'far-right': {box: 'right', atEnd: true},
 };
 
+/* Every key the indicator renders from. Each gets a `changed::` handler that
+ * refreshes the cache in _readSettings() and re-syncs. */
+const PANEL_KEYS = [
+    'show-previous',
+    'show-play-pause',
+    'show-next',
+    'show-seek-backward',
+    'show-seek-forward',
+    'show-player-icon',
+    'show-title',
+    'show-artist',
+    'panel-text-width',
+    'scroll-text',
+    'scroll-speed',
+    'scroll-direction',
+    'scroll-loop',
+    'hide-when-inactive',
+    'controls-on-left',
+];
+
 const MediaIndicator = GObject.registerClass(
 class MediaIndicator extends PanelMenu.Button {
     _init(extension, settings, artCache, manager) {
@@ -36,6 +56,8 @@ class MediaIndicator extends PanelMenu.Button {
 
         this._settings = settings;
         this._manager = manager;
+        this._orderApplied = null;
+        this._readSettings();
 
         this.add_style_class_name('mc-panel-button');
 
@@ -76,27 +98,42 @@ class MediaIndicator extends PanelMenu.Button {
 
         this._managerId = this._manager.connect('changed', () => this.sync());
 
-        this._settingsIds = [
-            'changed::show-previous',
-            'changed::show-play-pause',
-            'changed::show-next',
-            'changed::show-seek-backward',
-            'changed::show-seek-forward',
-            'changed::show-player-icon',
-            'changed::show-title',
-            'changed::show-artist',
-            'changed::panel-text-width',
-            'changed::scroll-text',
-            'changed::scroll-speed',
-            'changed::scroll-direction',
-            'changed::scroll-loop',
-            'changed::hide-when-inactive',
-            'changed::controls-on-left',
-        ].map(key => this._settings.connect(key, () => this.sync()));
+        this._settingsIds = PANEL_KEYS.map(key =>
+            this._settings.connect(`changed::${key}`, () => {
+                this._readSettings();
+                this.sync();
+            }));
 
         this.connect('destroy', () => this._onDestroy());
 
         this.sync();
+    }
+
+    /**
+     * sync() runs on every D-Bus property change — several times a second for
+     * players that report progress — and each GSettings read marshals a
+     * GVariant. The values only move when one of the handlers above fires, so
+     * they are read there and cached here.
+     */
+    _readSettings() {
+        const settings = this._settings;
+        this._prefs = {
+            showPrevious: settings.get_boolean('show-previous'),
+            showPlayPause: settings.get_boolean('show-play-pause'),
+            showNext: settings.get_boolean('show-next'),
+            showSeekBackward: settings.get_boolean('show-seek-backward'),
+            showSeekForward: settings.get_boolean('show-seek-forward'),
+            showPlayerIcon: settings.get_boolean('show-player-icon'),
+            showTitle: settings.get_boolean('show-title'),
+            showArtist: settings.get_boolean('show-artist'),
+            textWidth: settings.get_int('panel-text-width'),
+            scrollText: settings.get_boolean('scroll-text'),
+            scrollSpeed: settings.get_int('scroll-speed'),
+            scrollRightToLeft: settings.get_string('scroll-direction') === 'right-to-left',
+            scrollLoop: settings.get_boolean('scroll-loop'),
+            hideWhenInactive: settings.get_boolean('hide-when-inactive'),
+            controlsOnLeft: settings.get_boolean('controls-on-left'),
+        };
     }
 
     /**
@@ -220,19 +257,24 @@ class MediaIndicator extends PanelMenu.Button {
     /** The full text; the label itself truncates or scrolls it. */
     _panelText(player) {
         const parts = [];
-        if (this._settings.get_boolean('show-title') && player.title)
+        if (this._prefs.showTitle && player.title)
             parts.push(player.title);
-        if (this._settings.get_boolean('show-artist') && player.artist)
+        if (this._prefs.showArtist && player.artist)
             parts.push(player.artist);
         return parts.join(' · ');
     }
 
     sync() {
         const player = this._manager.activePlayer;
+        const prefs = this._prefs;
         this._card.setPlayer(player);
 
         if (!player) {
-            if (this._settings.get_boolean('hide-when-inactive')) {
+            /* Drop the text before hiding: a scrolling label left with content
+             * keeps its animation running against an actor nobody can see. */
+            this._label.setText('');
+
+            if (prefs.hideWhenInactive) {
                 if (this.menu.isOpen)
                     this.menu.close();
                 this.container.visible = false;
@@ -253,28 +295,24 @@ class MediaIndicator extends PanelMenu.Button {
         this.container.visible = true;
 
         const text = this._panelText(player);
-        this._label.setWidth(this._settings.get_int('panel-text-width'));
-        this._label.setScrolling(this._settings.get_boolean('scroll-text'),
-            this._settings.get_int('scroll-speed'),
-            this._settings.get_string('scroll-direction') === 'right-to-left',
-            this._settings.get_boolean('scroll-loop'));
+        this._label.setWidth(prefs.textWidth);
+        this._label.setScrolling(prefs.scrollText, prefs.scrollSpeed,
+            prefs.scrollRightToLeft, prefs.scrollLoop);
         this._label.setText(text);
         this._label.visible = text.length > 0;
 
-        this._playerIcon.visible = this._settings.get_boolean('show-player-icon');
+        this._playerIcon.visible = prefs.showPlayerIcon;
         if (this._playerIcon.visible)
             this._playerIcon.gicon = player.appIcon;
         this._textBox.visible = this._label.visible || this._playerIcon.visible;
 
-        this._prevButton.visible = this._settings.get_boolean('show-previous');
-        this._playButton.visible = this._settings.get_boolean('show-play-pause');
-        this._nextButton.visible = this._settings.get_boolean('show-next');
+        this._prevButton.visible = prefs.showPrevious;
+        this._playButton.visible = prefs.showPlayPause;
+        this._nextButton.visible = prefs.showNext;
 
         /* Skipping needs Seek(); a player without it gets no skip buttons. */
-        this._backButton.visible = player.canSeek &&
-            this._settings.get_boolean('show-seek-backward');
-        this._forwardButton.visible = player.canSeek &&
-            this._settings.get_boolean('show-seek-forward');
+        this._backButton.visible = player.canSeek && prefs.showSeekBackward;
+        this._forwardButton.visible = player.canSeek && prefs.showSeekForward;
 
         this._controlsBox.visible = this._prevButton.visible ||
             this._playButton.visible || this._nextButton.visible ||
@@ -296,8 +334,14 @@ class MediaIndicator extends PanelMenu.Button {
         actor.opacity = sensitive ? 255 : 100;
     }
 
+    /* set_child_at_index() re-inserts the actor and queues a relayout even when
+     * the index does not move, so only act on a real change. */
     _applyOrder() {
-        const controlsFirst = this._settings.get_boolean('controls-on-left');
+        const controlsFirst = this._prefs.controlsOnLeft;
+        if (controlsFirst === this._orderApplied)
+            return;
+
+        this._orderApplied = controlsFirst;
         this._box.set_child_at_index(this._controlsBox, controlsFirst ? 0 : 1);
     }
 

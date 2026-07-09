@@ -79,6 +79,8 @@ export const MediaCard = GObject.registerClass({
         this._timeoutId = 0;
         this._seekRefreshId = 0;
         this._dragging = false;
+        this._dragPlayer = null;
+        this._dragLength = 0;
         this._active = false;
         this._destroyed = false;
         this._currentArtUrl = null;
@@ -184,20 +186,31 @@ export const MediaCard = GObject.registerClass({
         this._slider.add_style_class_name('mc-seek');
         this._slider.x_expand = true;
 
+        /* The track can advance while the thumb is held, and sync() would move
+         * `_length` out from under the drag. Pin the player and the duration the
+         * user is actually scrubbing against. */
         this._slider.connect('drag-begin', () => {
             this._dragging = true;
+            this._dragPlayer = this._player;
+            this._dragLength = this._length;
             return Clutter.EVENT_PROPAGATE;
         });
         this._slider.connect('drag-end', () => {
             this._dragging = false;
-            if (this._player && this._length > 0)
-                this._player.setPosition(Math.round(this._slider.value * this._length));
+            const player = this._dragPlayer;
+            const length = this._dragLength;
+            this._dragPlayer = null;
+
+            if (player && player === this._player && length > 0)
+                player.setPosition(Math.round(this._slider.value * length));
             return Clutter.EVENT_PROPAGATE;
         });
         /* Keep the timestamps under the thumb while the user scrubs. */
         this._slider.connect('notify::value', () => {
-            if (this._dragging && this._length > 0)
-                this._updateTimeLabels(this._slider.value * this._length);
+            if (this._dragging && this._dragLength > 0) {
+                this._updateTimeLabels(this._slider.value * this._dragLength,
+                    this._dragLength);
+            }
         });
 
         const times = new St.BoxLayout({
@@ -317,8 +330,11 @@ export const MediaCard = GObject.registerClass({
             this._refreshPosition();
     }
 
+    /* Polling exists to move the seek bar. No seek bar on screen, no polling —
+     * every tick is a D-Bus round trip. */
     _updateTimer() {
-        const wanted = this._active && this._player?.isPlaying && this._length > 0;
+        const wanted = this._active && this._seekBox.visible &&
+            this._player?.isPlaying;
 
         if (wanted && !this._timeoutId) {
             this._timeoutId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT,
@@ -333,11 +349,14 @@ export const MediaCard = GObject.registerClass({
     }
 
     _refreshPosition() {
-        if (!this._player)
+        const player = this._player;
+        if (!player)
             return;
-        this._player.getPosition().then(position => {
-            /* The D-Bus round trip can outlive the card or a drag starting. */
-            if (this._destroyed || this._dragging)
+        player.getPosition().then(position => {
+            /* The D-Bus round trip can outlive the card, a drag starting, or the
+             * player it was issued for — a late answer from the previous track
+             * would otherwise be painted onto this one's slider. */
+            if (this._destroyed || this._dragging || this._player !== player)
                 return;
             this._position = position;
             this._updateSlider();
@@ -354,9 +373,9 @@ export const MediaCard = GObject.registerClass({
         this._updateTimeLabels(this._position);
     }
 
-    _updateTimeLabels(position) {
+    _updateTimeLabels(position, length = this._length) {
         this._positionLabel.text = formatTime(position);
-        this._remainingLabel.text = `-${formatTime(Math.max(0, this._length - position))}`;
+        this._remainingLabel.text = `-${formatTime(Math.max(0, length - position))}`;
     }
 
     /** Drop any painted art and orphan whatever download is in flight. */
