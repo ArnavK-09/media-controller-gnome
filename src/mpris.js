@@ -437,8 +437,10 @@ export const MprisManager = GObject.registerClass({
         this._playerSignals.delete(busName);
         this._players.delete(busName);
 
-        if (this._active === player)
-            this._active = null;
+        /* `_active` is left pointing at the removed player on purpose:
+         * _selectActive() compares against it to decide whether to emit
+         * 'changed'. Clearing it here would swallow that signal, leaving the
+         * panel showing a player that has quit. */
         player.destroy();
     }
 
