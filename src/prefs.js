@@ -95,6 +95,12 @@ export default class MediaControllerPreferences extends ExtensionPreferences {
         buttons.add(this._switchRow(settings, 'show-previous', _('Previous')));
         buttons.add(this._switchRow(settings, 'show-play-pause', _('Play / Pause')));
         buttons.add(this._switchRow(settings, 'show-next', _('Next')));
+        buttons.add(this._switchRow(settings, 'show-seek-backward',
+            _('Skip backward'),
+            _('Only shown for players that support seeking.')));
+        buttons.add(this._switchRow(settings, 'show-seek-forward',
+            _('Skip forward'),
+            _('Only shown for players that support seeking.')));
         page.add(buttons);
 
         const text = new Adw.PreferencesGroup({title: _('Track information')});
@@ -103,7 +109,15 @@ export default class MediaControllerPreferences extends ExtensionPreferences {
         text.add(this._switchRow(settings, 'show-artist', _('Artist')));
         text.add(this._spinRow(settings, 'max-text-length',
             _('Maximum text length'),
-            _('Longer text is shortened with an ellipsis.'), 6, 80, 1));
+            _('How much text stays visible, in characters.'), 6, 80, 1));
+        text.add(this._switchRow(settings, 'scroll-text',
+            _('Scroll long text'),
+            _('Loop longer text past the panel instead of cutting it off.')));
+
+        const speed = this._spinRow(settings, 'scroll-speed',
+            _('Scrolling speed'), _('In pixels per second.'), 10, 120, 5);
+        settings.bind('scroll-text', speed, 'sensitive', Gio.SettingsBindFlags.GET);
+        text.add(speed);
         page.add(text);
 
         return page;
@@ -135,7 +149,8 @@ export default class MediaControllerPreferences extends ExtensionPreferences {
             _('Show skip buttons'),
             _('Only shown for players that support seeking.')));
         skip.add(this._spinRow(settings, 'seek-step-seconds',
-            _('Skip amount'), _('In seconds.'), 2, 20, 1));
+            _('Skip amount'),
+            _('In seconds. Also used by the panel skip buttons.'), 2, 20, 1));
         page.add(skip);
 
         return page;

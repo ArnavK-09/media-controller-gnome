@@ -3,7 +3,6 @@
 
 import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
-import Pango from 'gi://Pango';
 import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -14,8 +13,11 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import {ArtCache} from './artCache.js';
 import {MediaCard} from './mediaCard.js';
 import {MprisManager} from './mpris.js';
+import {ScrollingLabel} from './scrollingLabel.js';
 
 const ROLE = 'media-controller';
+
+const US_PER_SECOND = 1000000;
 
 /* `atEnd` positions are appended after everything already in that panel box —
  * for "far right" that means past the quick settings menu. */
@@ -27,12 +29,6 @@ const PANEL_POSITIONS = {
     'far-right': {box: 'right', atEnd: true},
 };
 
-function truncate(text, maxLength) {
-    if (text.length <= maxLength)
-        return text;
-    return `${text.substring(0, Math.max(1, maxLength - 1)).trimEnd()}…`;
-}
-
 const MediaIndicator = GObject.registerClass(
 class MediaIndicator extends PanelMenu.Button {
     _init(extension, settings, artCache, manager) {
@@ -42,6 +38,8 @@ class MediaIndicator extends PanelMenu.Button {
         this._manager = manager;
 
         this.add_style_class_name('mc-panel-button');
+
+        this._disableMenuToggle();
 
         this._box = new St.BoxLayout({
             style_class: 'mc-panel-box',
@@ -82,10 +80,14 @@ class MediaIndicator extends PanelMenu.Button {
             'changed::show-previous',
             'changed::show-play-pause',
             'changed::show-next',
+            'changed::show-seek-backward',
+            'changed::show-seek-forward',
             'changed::show-player-icon',
             'changed::show-title',
             'changed::show-artist',
             'changed::max-text-length',
+            'changed::scroll-text',
+            'changed::scroll-speed',
             'changed::hide-when-inactive',
             'changed::controls-on-left',
         ].map(key => this._settings.connect(key, () => this.sync()));
@@ -95,8 +97,33 @@ class MediaIndicator extends PanelMenu.Button {
         this.sync();
     }
 
+    /**
+     * PanelMenu.Button opens its menu from a Clutter.ClickGesture that
+     * recognizes on press. Gestures are fed from the capture phase, so the
+     * gesture claims the sequence and cancels the St.Button gestures of the
+     * controls nested inside us — the card would open and the control would
+     * never emit `clicked`. Turning it off lets each child own its own clicks;
+     * the text box below takes over opening the card.
+     */
+    _disableMenuToggle() {
+        /* Shells before the gesture port have no ClickGesture at all. */
+        if (!Clutter.ClickGesture)
+            return;
+
+        for (const action of this.get_actions()) {
+            if (action instanceof Clutter.ClickGesture)
+                action.set_enabled(false);
+        }
+    }
+
+    /* Shells that predate the gesture port toggle the menu from vfunc_event
+     * instead. Swallowing it there is the equivalent of the above. */
+    vfunc_event(_event) {
+        return Clutter.EVENT_PROPAGATE;
+    }
+
     _buildTextBox() {
-        this._textBox = new St.BoxLayout({
+        const content = new St.BoxLayout({
             style_class: 'mc-panel-text',
             orientation: Clutter.Orientation.HORIZONTAL,
             y_align: Clutter.ActorAlign.CENTER,
@@ -106,14 +133,18 @@ class MediaIndicator extends PanelMenu.Button {
             style_class: 'system-status-icon mc-player-icon',
             icon_size: 16,
         });
-        this._label = new St.Label({
-            style_class: 'mc-panel-label',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        this._label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+        this._label = new ScrollingLabel('mc-panel-label');
 
-        this._textBox.add_child(this._playerIcon);
-        this._textBox.add_child(this._label);
+        content.add_child(this._playerIcon);
+        content.add_child(this._label);
+
+        this._textBox = new St.Button({
+            style_class: 'mc-panel-text-button',
+            can_focus: true,
+            y_align: Clutter.ActorAlign.CENTER,
+            child: content,
+        });
+        this._textBox.connect('clicked', () => this.menu.toggle());
         this._box.add_child(this._textBox);
     }
 
@@ -128,15 +159,27 @@ class MediaIndicator extends PanelMenu.Button {
          * not also toggle the menu the way clicking the label does. */
         this._prevButton = this._panelButton('media-skip-backward-symbolic',
             () => this._manager.activePlayer?.previous());
+        this._backButton = this._panelButton('media-seek-backward-symbolic',
+            () => this._skip(-1));
         this._playButton = this._panelButton('media-playback-start-symbolic',
             () => this._manager.activePlayer?.playPause());
+        this._forwardButton = this._panelButton('media-seek-forward-symbolic',
+            () => this._skip(1));
         this._nextButton = this._panelButton('media-skip-forward-symbolic',
             () => this._manager.activePlayer?.next());
 
         this._controlsBox.add_child(this._prevButton);
+        this._controlsBox.add_child(this._backButton);
         this._controlsBox.add_child(this._playButton);
+        this._controlsBox.add_child(this._forwardButton);
         this._controlsBox.add_child(this._nextButton);
         this._box.add_child(this._controlsBox);
+    }
+
+    /** @param {number} direction -1 to rewind, 1 to skip ahead */
+    _skip(direction) {
+        const step = this._settings.get_int('seek-step-seconds') * US_PER_SECOND;
+        this._manager.activePlayer?.seek(direction * step);
     }
 
     _panelButton(iconName, onClick) {
@@ -153,15 +196,14 @@ class MediaIndicator extends PanelMenu.Button {
         return button;
     }
 
+    /** The full text; the label itself truncates or scrolls it. */
     _panelText(player) {
         const parts = [];
         if (this._settings.get_boolean('show-title') && player.title)
             parts.push(player.title);
         if (this._settings.get_boolean('show-artist') && player.artist)
             parts.push(player.artist);
-        if (parts.length === 0)
-            return '';
-        return truncate(parts.join(' · '), this._settings.get_int('max-text-length'));
+        return parts.join(' · ');
     }
 
     sync() {
@@ -190,7 +232,9 @@ class MediaIndicator extends PanelMenu.Button {
         this.container.visible = true;
 
         const text = this._panelText(player);
-        this._label.text = text;
+        this._label.setScrolling(this._settings.get_boolean('scroll-text'),
+            this._settings.get_int('scroll-speed'));
+        this._label.setText(text, this._settings.get_int('max-text-length'));
         this._label.visible = text.length > 0;
 
         this._playerIcon.visible = this._settings.get_boolean('show-player-icon');
@@ -201,8 +245,16 @@ class MediaIndicator extends PanelMenu.Button {
         this._prevButton.visible = this._settings.get_boolean('show-previous');
         this._playButton.visible = this._settings.get_boolean('show-play-pause');
         this._nextButton.visible = this._settings.get_boolean('show-next');
-        this._controlsBox.visible =
-            this._prevButton.visible || this._playButton.visible || this._nextButton.visible;
+
+        /* Skipping needs Seek(); a player without it gets no skip buttons. */
+        this._backButton.visible = player.canSeek &&
+            this._settings.get_boolean('show-seek-backward');
+        this._forwardButton.visible = player.canSeek &&
+            this._settings.get_boolean('show-seek-forward');
+
+        this._controlsBox.visible = this._prevButton.visible ||
+            this._playButton.visible || this._nextButton.visible ||
+            this._backButton.visible || this._forwardButton.visible;
 
         this._playButton.child.icon_name = player.isPlaying
             ? 'media-playback-pause-symbolic'

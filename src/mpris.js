@@ -7,9 +7,12 @@
  */
 
 import Gio from 'gi://Gio';
-import GioUnix from 'gi://GioUnix';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
+
+import {resolvePlayerIcon} from './playerIcons.js';
+
+const GENERIC_ICON = 'audio-x-generic-symbolic';
 
 const MPRIS_PATH = '/org/mpris/MediaPlayer2';
 const MPRIS_PREFIX = 'org.mpris.MediaPlayer2.';
@@ -123,6 +126,7 @@ export const MprisPlayer = GObject.registerClass({
         this._cancellable = new Gio.Cancellable();
         this._iconCacheKey = null;
         this._iconCache = null;
+        this._genericIcon = null;
 
         this._playerProxy = null;
         this._appProxy = null;
@@ -230,22 +234,34 @@ export const MprisPlayer = GObject.registerClass({
         return this._appProxy?.DesktopEntry ?? '';
     }
 
-    /** Best-effort app icon for this player. Read on every UI sync, so cached. */
-    get appIcon() {
-        const entry = this.desktopEntry;
-        if (this._iconCacheKey === entry)
-            return this._iconCache;
-
-        let icon = null;
-        if (entry) {
-            const id = entry.endsWith('.desktop') ? entry : `${entry}.desktop`;
-            icon = GioUnix.DesktopAppInfo.new(id)?.get_icon() ?? null;
+    /**
+     * Resolution walks the desktop file index and the icon theme, and this is
+     * read on every UI sync, so the result is cached against the properties it
+     * was derived from. Both arrive asynchronously with the app proxy, so the
+     * key — not a "resolved once" flag — is what lets a better icon land later.
+     */
+    _resolveIcon() {
+        const key = JSON.stringify([this.desktopEntry, this.identity]);
+        if (this._iconCacheKey !== key) {
+            this._iconCacheKey = key;
+            this._iconCache = resolvePlayerIcon({
+                busName: this.busName,
+                desktopEntry: this.desktopEntry,
+                identity: this.identity,
+            });
         }
-        icon ??= Gio.ThemedIcon.new('audio-x-generic-symbolic');
+        return this._iconCache;
+    }
 
-        this._iconCacheKey = entry;
-        this._iconCache = icon;
-        return icon;
+    /** True when we found the player's real icon rather than a generic one. */
+    get hasAppIcon() {
+        return this._resolveIcon() !== null;
+    }
+
+    /** Best-effort app icon for this player; never null. */
+    get appIcon() {
+        this._genericIcon ??= Gio.ThemedIcon.new(GENERIC_ICON);
+        return this._resolveIcon() ?? this._genericIcon;
     }
 
     /* Any of these can race with the player disappearing from the bus, so every

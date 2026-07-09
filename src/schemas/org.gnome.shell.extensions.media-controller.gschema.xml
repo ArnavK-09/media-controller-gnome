@@ -34,6 +34,18 @@
       <summary>Show the next button in the panel</summary>
     </key>
 
+    <key name="show-seek-backward" type="b">
+      <default>false</default>
+      <summary>Show the skip-backward button in the panel</summary>
+      <description>Only shown for players that support seeking. Skips by seek-step-seconds.</description>
+    </key>
+
+    <key name="show-seek-forward" type="b">
+      <default>false</default>
+      <summary>Show the skip-forward button in the panel</summary>
+      <description>Only shown for players that support seeking. Skips by seek-step-seconds.</description>
+    </key>
+
     <key name="show-player-icon" type="b">
       <default>true</default>
       <summary>Show the player's application icon in the panel</summary>
@@ -54,6 +66,18 @@
       <range min="6" max="80"/>
       <summary>Maximum panel text length</summary>
       <description>Panel text longer than this is truncated with an ellipsis.</description>
+    </key>
+
+    <key name="scroll-text" type="b">
+      <default>false</default>
+      <summary>Scroll panel text that does not fit</summary>
+      <description>Text longer than the maximum length loops past a fixed window instead of being truncated.</description>
+    </key>
+
+    <key name="scroll-speed" type="i">
+      <default>30</default>
+      <range min="10" max="120"/>
+      <summary>Scrolling speed in pixels per second</summary>
     </key>
 
     <key name="controls-on-left" type="b">

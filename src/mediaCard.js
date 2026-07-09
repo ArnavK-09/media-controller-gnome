@@ -99,7 +99,7 @@ export const MediaCard = GObject.registerClass({
         });
         this._artFallback = new St.Icon({
             icon_name: 'audio-x-generic-symbolic',
-            icon_size: 24,
+            icon_size: 32,
             opacity: DIM_OPACITY,
         });
         this._artBin.set_child(this._artFallback);
@@ -117,7 +117,12 @@ export const MediaCard = GObject.registerClass({
             text: '',
             opacity: DIM_OPACITY,
         });
-        this._titleLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+        /* The card has a fixed width, so a long title wraps onto further lines
+         * rather than being cut off. Breaking mid-word is the fallback for a
+         * single word too long to fit on a line of its own. */
+        this._titleLabel.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
+        this._titleLabel.clutter_text.line_wrap = true;
+        this._titleLabel.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
         this._subtitleLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
         textBox.add_child(this._titleLabel);
         textBox.add_child(this._subtitleLabel);
@@ -345,8 +350,17 @@ export const MediaCard = GObject.registerClass({
         this._artGeneration++;
         this._currentArtUrl = null;
         this._artBin.style = null;
+        this._artFallback.gicon = null;
         this._artFallback.icon_name = 'audio-x-generic-symbolic';
+        this._artFallback.opacity = DIM_OPACITY;
         this._artFallback.visible = true;
+    }
+
+    /* A real app icon carries its own color and reads as artwork; only the
+     * generic symbolic placeholder wants dimming. */
+    _setFallbackIcon(player) {
+        this._artFallback.gicon = player.appIcon;
+        this._artFallback.opacity = player.hasAppIcon ? 255 : DIM_OPACITY;
     }
 
     _updateArt() {
@@ -362,15 +376,20 @@ export const MediaCard = GObject.registerClass({
         }
 
         const url = player.artUrl;
-        if (url === this._currentArtUrl)
+        if (url === this._currentArtUrl) {
+            /* The app proxy resolves after the player proxy, so a track with no
+             * artwork can still gain a real icon on a later sync. */
+            if (this._artFallback.visible)
+                this._setFallbackIcon(player);
             return;
+        }
 
         /* Art resolution is async; a newer track must win even if its download
          * finishes first. */
         this._clearArt();
         this._currentArtUrl = url;
         const generation = this._artGeneration;
-        this._artFallback.gicon = player.appIcon;
+        this._setFallbackIcon(player);
 
         if (!url)
             return;

@@ -20,6 +20,11 @@
   spacing: 6px;
 }
 
+.mc-panel-text-button {
+  border-radius: 6px;
+  padding: 0 2px;
+}
+
 .mc-panel-label {
   font-weight: 500;
 }
@@ -74,9 +79,9 @@
 }
 
 .mc-art {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
+  width: 72px;
+  height: 72px;
+  border-radius: 14px;
   background-color: rgba(127, 127, 127, 0.2);
   background-size: cover;
 }
