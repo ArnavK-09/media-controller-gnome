@@ -77,6 +77,12 @@ export default class MediaControllerPreferences extends ExtensionPreferences {
         return row;
     }
 
+    /* Grey a row out while the feature it configures is switched off. */
+    _bindSensitive(settings, key, row) {
+        settings.bind(key, row, 'sensitive', Gio.SettingsBindFlags.GET);
+        return row;
+    }
+
     _panelPage(settings) {
         const page = new Adw.PreferencesPage({
             title: _('Panel'),
@@ -85,62 +91,65 @@ export default class MediaControllerPreferences extends ExtensionPreferences {
 
         const placement = new Adw.PreferencesGroup({
             title: _('Placement'),
-            description: _('Where the indicator sits in the top panel.'),
+            description: _('Where the indicator appears in the top panel.'),
         });
-
         placement.add(this._comboRow(settings, 'panel-position', _('Position'),
             POSITIONS, positionLabels()));
-
         placement.add(this._switchRow(settings, 'controls-on-left',
-            _('Controls before text'),
-            _('Show the playback buttons to the left of the track title.')));
+            _('Show controls before track information'),
+            _('Place the playback buttons to the left of the player icon and text.')));
         placement.add(this._switchRow(settings, 'hide-when-inactive',
             _('Hide when nothing is playing'),
-            _('Remove the indicator from the panel when no player is running.')));
+            _('Remove the indicator from the panel while no media player is running.')));
         page.add(placement);
 
+        /* Listed in the order they appear on screen. */
         const buttons = new Adw.PreferencesGroup({
-            title: _('Buttons'),
-            description: _('Which playback controls appear in the panel.'),
+            title: _('Playback controls'),
+            description: _('Which buttons appear in the panel.'),
         });
-        buttons.add(this._switchRow(settings, 'show-previous', _('Previous')));
-        buttons.add(this._switchRow(settings, 'show-play-pause', _('Play / Pause')));
-        buttons.add(this._switchRow(settings, 'show-next', _('Next')));
+        buttons.add(this._switchRow(settings, 'show-previous', _('Previous track')));
         buttons.add(this._switchRow(settings, 'show-seek-backward',
             _('Skip backward'),
-            _('Only shown for players that support seeking.')));
+            _('Requires a player that supports seeking.')));
+        buttons.add(this._switchRow(settings, 'show-play-pause', _('Play and pause')));
         buttons.add(this._switchRow(settings, 'show-seek-forward',
             _('Skip forward'),
-            _('Only shown for players that support seeking.')));
+            _('Requires a player that supports seeking.')));
+        buttons.add(this._switchRow(settings, 'show-next', _('Next track')));
         page.add(buttons);
 
-        const text = new Adw.PreferencesGroup({title: _('Track information')});
+        const text = new Adw.PreferencesGroup({
+            title: _('Track information'),
+            description: _('What the indicator shows about the current track.'),
+        });
         text.add(this._switchRow(settings, 'show-player-icon', _('Player icon')));
-        text.add(this._switchRow(settings, 'show-title', _('Title')));
+        text.add(this._switchRow(settings, 'show-title', _('Track title')));
         text.add(this._switchRow(settings, 'show-artist', _('Artist')));
         text.add(this._spinRow(settings, 'panel-text-width',
             _('Text width'),
-            _('In pixels. The track text always occupies this width.'), 60, 600, 10));
-        text.add(this._switchRow(settings, 'scroll-text',
-            _('Scroll long text'),
-            _('Loop text that does not fit instead of cutting it off.')));
-
-        const loop = this._switchRow(settings, 'scroll-loop',
-            _('Scroll continuously'),
-            _('Off: the text scrolls once each time the track changes.'));
-        settings.bind('scroll-text', loop, 'sensitive', Gio.SettingsBindFlags.GET);
-        text.add(loop);
-
-        const direction = this._comboRow(settings, 'scroll-direction',
-            _('Scrolling direction'), DIRECTIONS, directionLabels());
-        settings.bind('scroll-text', direction, 'sensitive', Gio.SettingsBindFlags.GET);
-        text.add(direction);
-
-        const speed = this._spinRow(settings, 'scroll-speed',
-            _('Scrolling speed'), _('In pixels per second.'), 10, 120, 5);
-        settings.bind('scroll-text', speed, 'sensitive', Gio.SettingsBindFlags.GET);
-        text.add(speed);
+            _('Width reserved for the track text, in pixels. The indicator keeps this width whatever is playing.'),
+            60, 600, 10));
         page.add(text);
+
+        const scrolling = new Adw.PreferencesGroup({
+            title: _('Scrolling text'),
+            description: _('What happens when the track text is wider than the reserved width.'),
+        });
+        scrolling.add(this._switchRow(settings, 'scroll-text',
+            _('Scroll the text'),
+            _('When off, text that does not fit is shortened with an ellipsis.')));
+        scrolling.add(this._bindSensitive(settings, 'scroll-text',
+            this._switchRow(settings, 'scroll-loop',
+                _('Repeat'),
+                _('Scroll continuously. When off, the text scrolls once for each new track.'))));
+        scrolling.add(this._bindSensitive(settings, 'scroll-text',
+            this._comboRow(settings, 'scroll-direction', _('Direction'),
+                DIRECTIONS, directionLabels())));
+        scrolling.add(this._bindSensitive(settings, 'scroll-text',
+            this._spinRow(settings, 'scroll-speed',
+                _('Speed'), _('Pixels per second.'), 10, 120, 5)));
+        page.add(scrolling);
 
         return page;
     }
@@ -151,29 +160,32 @@ export default class MediaControllerPreferences extends ExtensionPreferences {
             icon_name: 'audio-x-generic-symbolic',
         });
 
-        const group = new Adw.PreferencesGroup({
-            title: _('Now playing card'),
-            description: _('Shown when you click the indicator.'),
+        const appearance = new Adw.PreferencesGroup({
+            title: _('Appearance'),
+            description: _('The card is shown when you click the panel indicator.'),
         });
-        group.add(this._switchRow(settings, 'card-show-art', _('Album art')));
-        group.add(this._switchRow(settings, 'card-show-seek-bar',
-            _('Seek bar'),
-            _('Only shown for players that report a track length.')));
-        group.add(this._spinRow(settings, 'card-width',
-            _('Card width'), _('In pixels.'), 280, 560, 10));
-        page.add(group);
+        appearance.add(this._switchRow(settings, 'card-show-art',
+            _('Album art'),
+            _('Falls back to the player icon when the track has no artwork.')));
+        appearance.add(this._spinRow(settings, 'card-width',
+            _('Card width'), _('Measured in pixels.'), 280, 560, 10));
+        page.add(appearance);
 
-        const skip = new Adw.PreferencesGroup({
-            title: _('Skip buttons'),
-            description: _('Jump backward and forward within the current track.'),
+        const playback = new Adw.PreferencesGroup({
+            title: _('Playback'),
+            description: _('Controls for moving within the current track.'),
         });
-        skip.add(this._switchRow(settings, 'card-show-seek-buttons',
-            _('Show skip buttons'),
-            _('Only shown for players that support seeking.')));
-        skip.add(this._spinRow(settings, 'seek-step-seconds',
+        playback.add(this._switchRow(settings, 'card-show-seek-bar',
+            _('Seek bar'),
+            _('Requires a player that reports the track length.')));
+        playback.add(this._switchRow(settings, 'card-show-seek-buttons',
+            _('Skip buttons'),
+            _('Requires a player that supports seeking.')));
+        playback.add(this._spinRow(settings, 'seek-step-seconds',
             _('Skip amount'),
-            _('In seconds. Also used by the panel skip buttons.'), 2, 20, 1));
-        page.add(skip);
+            _('How far the skip buttons jump, in seconds. Shared with the panel skip buttons.'),
+            2, 20, 1));
+        page.add(playback);
 
         return page;
     }
