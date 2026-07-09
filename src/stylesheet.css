@@ -20,13 +20,6 @@
   spacing: 6px;
 }
 
-/* Same fully round radius as the control buttons, so the icon-plus-title hover
- * fill reads as a pill of the same family rather than a rounded box. */
-.mc-panel-text-button {
-  border-radius: 99px;
-  padding: 2px 8px;
-}
-
 .mc-panel-label {
   font-weight: 500;
 }
@@ -42,13 +35,13 @@
   padding: 4px;
 }
 
-/* Neutral grey reads correctly on both light and dark panels. */
-.mc-panel-text-button:hover,
+/* Neutral grey reads correctly on both light and dark panels. The icon-plus-title
+ * area gets no fill of its own: the whole indicator is the click target there,
+ * and the shell's own `.panel-button:hover` already lights it up. */
 .mc-panel-control:hover {
   background-color: rgba(127, 127, 127, 0.2);
 }
 
-.mc-panel-text-button:active,
 .mc-panel-control:active {
   background-color: rgba(127, 127, 127, 0.35);
 }

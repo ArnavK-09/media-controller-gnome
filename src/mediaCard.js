@@ -16,6 +16,20 @@ import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js'
 const POSITION_POLL_SECONDS = 1;
 const US_PER_SECOND = 1000000;
 
+/* A wrapping title has no natural bound: the card is as tall as the text needs.
+ * Podcast episodes and DJ sets routinely carry titles of a few hundred
+ * characters, which would push the controls off the bottom of the screen. This
+ * caps the title at roughly three lines at the default card width; the wrap
+ * still does the real work, this only stops the pathological case. */
+const MAX_TITLE_CHARS = 120;
+
+/** @param {string} text @param {number} maxLength */
+function truncate(text, maxLength) {
+    if (text.length <= maxLength)
+        return text;
+    return `${text.substring(0, maxLength - 1).trimEnd()}…`;
+}
+
 /** @param {number} micros */
 function formatTime(micros) {
     const total = Math.max(0, Math.floor(micros / US_PER_SECOND));
@@ -423,7 +437,7 @@ export const MediaCard = GObject.registerClass({
         const artist = player.artist;
         const album = player.album;
 
-        this._titleLabel.text = title;
+        this._titleLabel.text = truncate(title, MAX_TITLE_CHARS);
         const subtitle = artist && album && artist !== album
             ? `${artist} — ${album}`
             : artist || album;

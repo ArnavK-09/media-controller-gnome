@@ -8,6 +8,7 @@
  */
 
 import Clutter from 'gi://Clutter';
+import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import Pango from 'gi://Pango';
 import St from 'gi://St';
@@ -35,9 +36,11 @@ class ScrollingLabel extends St.Widget {
         this._scrolling = false;
         this._speed = 30;
         this._rightToLeft = false;
+        this._loopForever = true;
 
         /* The scroll distance currently animating; 0 when nothing is moving. */
         this._distance = 0;
+        this._loopId = 0;
 
         this._box = new St.BoxLayout({
             orientation: Clutter.Orientation.HORIZONTAL,
@@ -79,14 +82,16 @@ class ScrollingLabel extends St.Widget {
      * @param {boolean} enabled
      * @param {number} speed pixels per second
      * @param {boolean} rightToLeft text travels leftward, as it is read
+     * @param {boolean} loop keep scrolling, rather than one pass per track
      */
-    setScrolling(enabled, speed, rightToLeft) {
+    setScrolling(enabled, speed, rightToLeft, loop) {
         if (enabled === this._scrolling && speed === this._speed &&
-            rightToLeft === this._rightToLeft)
+            rightToLeft === this._rightToLeft && loop === this._loopForever)
             return;
         this._scrolling = enabled;
         this._speed = speed;
         this._rightToLeft = rightToLeft;
+        this._loopForever = loop;
         this._update(true);
     }
 
@@ -156,11 +161,37 @@ class ScrollingLabel extends St.Widget {
             duration: (this._distance / Math.max(1, this._speed)) * 1000,
             delay: PAUSE_MS,
             mode: Clutter.AnimationMode.LINEAR,
-            onComplete: () => this._loop(),
+            onComplete: () => this._queueLoop(),
+        });
+    }
+
+    /* Clutter drops the finished transition *after* onComplete returns, and the
+     * drop is by property name — so work done from inside the callback is torn
+     * down with the pass that spawned it. Everything after a pass therefore
+     * happens from an idle, once that cleanup is over. */
+    _queueLoop() {
+        if (this._loopId)
+            return;
+        this._loopId = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            this._loopId = 0;
+            if (this._distance <= 0)
+                return GLib.SOURCE_REMOVE;
+
+            /* One pass per track: settle back into the ellipsized label. The
+             * next setText() starts the whole thing over. */
+            if (this._loopForever)
+                this._loop();
+            else
+                this._showStatic();
+
+            return GLib.SOURCE_REMOVE;
         });
     }
 
     _stop() {
+        if (this._loopId)
+            GLib.Source.remove(this._loopId);
+        this._loopId = 0;
         this._box.remove_all_transitions();
         this._box.translation_x = 0;
     }

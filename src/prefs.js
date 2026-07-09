@@ -125,6 +125,12 @@ export default class MediaControllerPreferences extends ExtensionPreferences {
             _('Scroll long text'),
             _('Loop text that does not fit instead of cutting it off.')));
 
+        const loop = this._switchRow(settings, 'scroll-loop',
+            _('Scroll continuously'),
+            _('Off: the text scrolls once each time the track changes.'));
+        settings.bind('scroll-text', loop, 'sensitive', Gio.SettingsBindFlags.GET);
+        text.add(loop);
+
         const direction = this._comboRow(settings, 'scroll-direction',
             _('Scrolling direction'), DIRECTIONS, directionLabels());
         settings.bind('scroll-text', direction, 'sensitive', Gio.SettingsBindFlags.GET);

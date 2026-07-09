@@ -89,6 +89,7 @@ class MediaIndicator extends PanelMenu.Button {
             'changed::scroll-text',
             'changed::scroll-speed',
             'changed::scroll-direction',
+            'changed::scroll-loop',
             'changed::hide-when-inactive',
             'changed::controls-on-left',
         ].map(key => this._settings.connect(key, () => this.sync()));
@@ -101,13 +102,14 @@ class MediaIndicator extends PanelMenu.Button {
     /**
      * PanelMenu.Button opens its menu from a Clutter.ClickGesture that
      * recognizes on press. Gestures are fed from the capture phase, so the
-     * gesture claims the sequence and cancels the St.Button gestures of the
-     * controls nested inside us — the card would open and the control would
-     * never emit `clicked`. Turning it off lets each child own its own clicks;
-     * the text box below takes over opening the card.
+     * gesture claimed every click before the control buttons nested inside us
+     * could see it — pressing a control opened the card and the control itself
+     * never emitted `clicked`. We drop the gesture and toggle from vfunc_event
+     * instead, where the press can be attributed to the actor it landed on.
      */
     _disableMenuToggle() {
-        /* Shells before the gesture port have no ClickGesture at all. */
+        /* Shells before the gesture port have no ClickGesture at all; there the
+         * inherited vfunc_event does the toggling, and our override replaces it. */
         if (!Clutter.ClickGesture)
             return;
 
@@ -117,14 +119,39 @@ class MediaIndicator extends PanelMenu.Button {
         }
     }
 
-    /* Shells that predate the gesture port toggle the menu from vfunc_event
-     * instead. Swallowing it there is the equivalent of the above. */
-    vfunc_event(_event) {
+    /* A press anywhere on the indicator opens the card, except on the transport
+     * controls, which do their own job instead. Toggling on press rather than
+     * release matches every other panel menu in the shell. */
+    vfunc_event(event) {
+        const type = event.type();
+        const isPress = type === Clutter.EventType.BUTTON_PRESS ||
+                        type === Clutter.EventType.TOUCH_BEGIN;
+
+        if (isPress && this.menu && !this._isOnControls(event))
+            this.menu.toggle();
+
         return Clutter.EVENT_PROPAGATE;
     }
 
+    /**
+     * Hit-test the controls box by geometry. `event.get_source()` is null for
+     * pointer events here, and picking would report a disabled control as a
+     * miss — which would open the card from a greyed-out button.
+     */
+    _isOnControls(event) {
+        if (!this._controlsBox?.visible)
+            return false;
+
+        const [x, y] = event.get_coords();
+        const [boxX, boxY] = this._controlsBox.get_transformed_position();
+        const [width, height] = this._controlsBox.get_transformed_size();
+
+        return x >= boxX && x < boxX + width &&
+               y >= boxY && y < boxY + height;
+    }
+
     _buildTextBox() {
-        const content = new St.BoxLayout({
+        this._textBox = new St.BoxLayout({
             style_class: 'mc-panel-text',
             orientation: Clutter.Orientation.HORIZONTAL,
             y_align: Clutter.ActorAlign.CENTER,
@@ -136,16 +163,8 @@ class MediaIndicator extends PanelMenu.Button {
         });
         this._label = new ScrollingLabel('mc-panel-label');
 
-        content.add_child(this._playerIcon);
-        content.add_child(this._label);
-
-        this._textBox = new St.Button({
-            style_class: 'mc-panel-text-button',
-            can_focus: true,
-            y_align: Clutter.ActorAlign.CENTER,
-            child: content,
-        });
-        this._textBox.connect('clicked', () => this.menu.toggle());
+        this._textBox.add_child(this._playerIcon);
+        this._textBox.add_child(this._label);
         this._box.add_child(this._textBox);
     }
 
@@ -156,8 +175,6 @@ class MediaIndicator extends PanelMenu.Button {
             y_align: Clutter.ActorAlign.CENTER,
         });
 
-        /* St.Button consumes the button-press event, so clicking a control does
-         * not also toggle the menu the way clicking the label does. */
         this._prevButton = this._panelButton('media-skip-backward-symbolic',
             () => this._manager.activePlayer?.previous());
         this._backButton = this._panelButton('media-seek-backward-symbolic',
@@ -239,7 +256,8 @@ class MediaIndicator extends PanelMenu.Button {
         this._label.setWidth(this._settings.get_int('panel-text-width'));
         this._label.setScrolling(this._settings.get_boolean('scroll-text'),
             this._settings.get_int('scroll-speed'),
-            this._settings.get_string('scroll-direction') === 'right-to-left');
+            this._settings.get_string('scroll-direction') === 'right-to-left',
+            this._settings.get_boolean('scroll-loop'));
         this._label.setText(text);
         this._label.visible = text.length > 0;
 
