@@ -364,20 +364,25 @@ export const MprisPlayer = GObject.registerClass({
         if (!this._playerProxy || !this.canSeek)
             return;
 
+        const warn = e => console.warn(`media-controller: seek failed: ${e.message}`);
+
+        /* SetPosition needs a valid object path. Players that report a bogus
+         * trackid (or none) get a relative Seek instead. */
         const trackId = this.trackId;
-        try {
-            /* SetPosition needs a valid object path. Players that report a bogus
-             * trackid (or none) get a relative Seek instead. */
-            if (trackId && trackId.startsWith('/')) {
+        if (trackId && trackId.startsWith('/')) {
+            try {
                 this._playerProxy.SetPositionRemote(trackId, position, () => {});
-            } else {
-                this.getPosition().then(current => {
-                    this._playerProxy?.SeekRemote(position - current, () => {});
-                });
+            } catch (e) {
+                warn(e);
             }
-        } catch (e) {
-            console.warn(`media-controller: seek failed: ${e.message}`);
+            return;
         }
+
+        /* The Seek runs after a round trip, so a synchronous `try` around this
+         * call would already have returned by the time it could throw. */
+        this.getPosition()
+            .then(current => this._playerProxy?.SeekRemote(position - current, () => {}))
+            .catch(warn);
     }
 
     destroy() {

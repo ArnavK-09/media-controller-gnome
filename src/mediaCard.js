@@ -13,8 +13,9 @@ import St from 'gi://St';
 import {Slider} from 'resource:///org/gnome/shell/ui/slider.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
+import {US_PER_SECOND, playPauseIconName, seekOffset} from './transport.js';
+
 const POSITION_POLL_SECONDS = 1;
-const US_PER_SECOND = 1000000;
 
 /* A wrapping title has no natural bound: the card is as tall as the text needs.
  * Podcast episodes and DJ sets routinely carry titles of a few hundred
@@ -23,19 +24,40 @@ const US_PER_SECOND = 1000000;
  * still does the real work, this only stops the pathological case. */
 const MAX_TITLE_CHARS = 120;
 
-/** @param {string} text @param {number} maxLength */
+/* Keyed by the `card-art-size` enum nick. `icon` sizes the fallback player icon
+ * so it keeps roughly the same inset as the artwork it stands in for, and the
+ * radius tracks the size so the corners stay proportionally round. */
+const ART_SIZES = {
+    'small': {size: 64, radius: 12, icon: 28},
+    'medium': {size: 88, radius: 16, icon: 40},
+    'large': {size: 120, radius: 20, icon: 56},
+};
+const DEFAULT_ART_SIZE = 'medium';
+
+/**
+ * Spreading the string iterates code points, so the cut never lands between the
+ * halves of a surrogate pair and split an emoji into a broken glyph.
+ *
+ * @param {string} text @param {number} maxLength
+ */
 function truncate(text, maxLength) {
-    if (text.length <= maxLength)
+    const chars = [...text];
+    if (chars.length <= maxLength)
         return text;
-    return `${text.substring(0, maxLength - 1).trimEnd()}…`;
+    return `${chars.slice(0, maxLength - 1).join('').trimEnd()}…`;
 }
 
-/** @param {number} micros */
+/** Hours only appear once there are some: `4:07`, but `1:23:20`. */
 function formatTime(micros) {
     const total = Math.max(0, Math.floor(micros / US_PER_SECOND));
-    const minutes = Math.floor(total / 60);
     const seconds = total % 60;
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    const minutes = Math.floor(total / 60) % 60;
+    const hours = Math.floor(total / 3600);
+
+    const pad = value => value.toString().padStart(2, '0');
+    if (hours > 0)
+        return `${hours}:${pad(minutes)}:${pad(seconds)}`;
+    return `${minutes}:${pad(seconds)}`;
 }
 
 /** St parses this as CSS, so a path with a quote in it must not break out. */
@@ -85,6 +107,8 @@ export const MediaCard = GObject.registerClass({
         this._destroyed = false;
         this._currentArtUrl = null;
         this._artGeneration = 0;
+        this._artPath = null;
+        this._artSize = ART_SIZES[DEFAULT_ART_SIZE];
         this._length = 0;
         this._position = 0;
 
@@ -97,8 +121,10 @@ export const MediaCard = GObject.registerClass({
             this._settings.connect('changed::card-show-seek-bar', () => this.sync()),
             this._settings.connect('changed::card-show-seek-buttons', () => this.sync()),
             this._settings.connect('changed::card-width', () => this._applyWidth()),
+            this._settings.connect('changed::card-art-size', () => this._applyArtSize()),
         ];
         this._applyWidth();
+        this._applyArtSize();
 
         this.connect('destroy', () => this._onDestroy());
     }
@@ -115,7 +141,6 @@ export const MediaCard = GObject.registerClass({
         });
         this._artFallback = new St.Icon({
             icon_name: 'audio-x-generic-symbolic',
-            icon_size: 40,
             opacity: DIM_OPACITY,
         });
         this._artBin.set_child(this._artFallback);
@@ -270,8 +295,7 @@ export const MediaCard = GObject.registerClass({
     _skip(direction) {
         if (!this._player)
             return;
-        const step = this._settings.get_int('seek-step-seconds') * US_PER_SECOND;
-        this._player.seek(direction * step);
+        this._player.seek(seekOffset(this._settings, direction));
 
         /* Players that do not emit Seeked would otherwise leave the slider
          * stale until the next poll — and there is no poll while paused. */
@@ -290,6 +314,24 @@ export const MediaCard = GObject.registerClass({
 
     _applyWidth() {
         this.style = `width: ${this._settings.get_int('card-width')}px;`;
+    }
+
+    /* The art bin's geometry and its background-image share one `style`
+     * property, so both are written together rather than clobbering each other. */
+    _applyArtSize() {
+        const nick = this._settings.get_string('card-art-size');
+        this._artSize = ART_SIZES[nick] ?? ART_SIZES[DEFAULT_ART_SIZE];
+        this._artFallback.icon_size = this._artSize.icon;
+        this._applyArtStyle();
+    }
+
+    _applyArtStyle() {
+        const {size, radius} = this._artSize;
+        const image = this._artPath
+            ? ` background-image: ${cssUrl(this._artPath)};`
+            : '';
+        this._artBin.style =
+            `width: ${size}px; height: ${size}px; border-radius: ${radius}px;${image}`;
     }
 
     setPlayer(player) {
@@ -382,7 +424,8 @@ export const MediaCard = GObject.registerClass({
     _clearArt() {
         this._artGeneration++;
         this._currentArtUrl = null;
-        this._artBin.style = null;
+        this._artPath = null;
+        this._applyArtStyle();
         this._artFallback.gicon = null;
         this._artFallback.icon_name = 'audio-x-generic-symbolic';
         this._artFallback.opacity = DIM_OPACITY;
@@ -430,7 +473,8 @@ export const MediaCard = GObject.registerClass({
         this._artCache.resolve(url).then(path => {
             if (this._destroyed || generation !== this._artGeneration || !path)
                 return;
-            this._artBin.style = `background-image: ${cssUrl(path)};`;
+            this._artPath = path;
+            this._applyArtStyle();
             this._artFallback.visible = false;
         });
     }
@@ -463,9 +507,7 @@ export const MediaCard = GObject.registerClass({
         this._subtitleLabel.text = subtitle;
         this._subtitleLabel.visible = !!subtitle;
 
-        this._playButton.child.icon_name = player.isPlaying
-            ? 'media-playback-pause-symbolic'
-            : 'media-playback-start-symbolic';
+        this._playButton.child.icon_name = playPauseIconName(player);
 
         this._setSensitive(this._prevButton, player.canGoPrevious);
         this._setSensitive(this._nextButton, player.canGoNext);

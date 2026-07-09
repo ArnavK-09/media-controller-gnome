@@ -3,14 +3,21 @@
 
 import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 import Gtk from 'gi://Gtk';
 
 import {ExtensionPreferences, gettext as _} from
     'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
+import {artCacheDir} from './paths.js';
+
+/* Enumerating in batches keeps a large cache off the main loop in one gulp. */
+const ENUMERATE_BATCH = 64;
+
 /* Index order must match the enum nicks in the GSettings schema. */
 const POSITIONS = ['far-left', 'left', 'center', 'right', 'far-right'];
 const DIRECTIONS = ['left-to-right', 'right-to-left'];
+const ART_SIZES = ['small', 'medium', 'large'];
 
 /* Must be a function, not a top-level constant: gettext resolves the calling
  * extension from the stack, and at module scope no extension is registered yet. */
@@ -31,6 +38,14 @@ function directionLabels() {
     ];
 }
 
+function artSizeLabels() {
+    return [
+        _('Small'),
+        _('Medium'),
+        _('Large'),
+    ];
+}
+
 export default class MediaControllerPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const settings = this.getSettings();
@@ -38,6 +53,7 @@ export default class MediaControllerPreferences extends ExtensionPreferences {
 
         window.add(this._panelPage(settings));
         window.add(this._cardPage(settings));
+        window.add(this._maintenancePage(settings, window));
     }
 
     _switchRow(settings, key, title, subtitle = null) {
@@ -167,6 +183,9 @@ export default class MediaControllerPreferences extends ExtensionPreferences {
         appearance.add(this._switchRow(settings, 'card-show-art',
             _('Album art'),
             _('Falls back to the player icon when the track has no artwork.')));
+        appearance.add(this._bindSensitive(settings, 'card-show-art',
+            this._comboRow(settings, 'card-art-size', _('Album art size'),
+                ART_SIZES, artSizeLabels())));
         appearance.add(this._spinRow(settings, 'card-width',
             _('Card width'), _('Measured in pixels.'), 280, 560, 10));
         page.add(appearance);
@@ -188,5 +207,174 @@ export default class MediaControllerPreferences extends ExtensionPreferences {
         page.add(playback);
 
         return page;
+    }
+
+    _maintenancePage(settings, window) {
+        const page = new Adw.PreferencesPage({
+            title: _('Maintenance'),
+            icon_name: 'applications-utilities-symbolic',
+        });
+
+        const cache = new Adw.PreferencesGroup({
+            title: _('Album art cache'),
+            description: _('Artwork downloaded from players that publish it over the web is stored on disk so it is not fetched again. Removing it is safe; anything still needed is downloaded once more.'),
+        });
+
+        const status = new Adw.ActionRow({title: _('Cached artwork')});
+        cache.add(status);
+        this._refreshCacheStatus(status);
+
+        const clear = new Adw.ButtonRow({title: _('Clear Cache…')});
+        clear.add_css_class('destructive-action');
+        clear.connect('activated', () => this._onClearCache(window, status));
+        cache.add(clear);
+        page.add(cache);
+
+        const reset = new Adw.PreferencesGroup({
+            title: _('Reset'),
+            description: _('Return every setting on the Panel and Card pages to the value it shipped with.'),
+        });
+        const resetRow = new Adw.ButtonRow({title: _('Reset All Settings…')});
+        resetRow.add_css_class('destructive-action');
+        resetRow.connect('activated', () => this._onReset(window, settings));
+        reset.add(resetRow);
+        page.add(reset);
+
+        return page;
+    }
+
+    /**
+     * Ask before doing something the user cannot undo.
+     *
+     * @returns {Promise<boolean>} whether they went through with it
+     */
+    _confirm(window, heading, body, confirmLabel) {
+        return new Promise(resolve => {
+            const dialog = new Adw.AlertDialog({heading, body});
+            dialog.add_response('cancel', _('Cancel'));
+            dialog.add_response('confirm', confirmLabel);
+            dialog.set_response_appearance('confirm',
+                Adw.ResponseAppearance.DESTRUCTIVE);
+            dialog.set_default_response('cancel');
+            dialog.set_close_response('cancel');
+            dialog.choose(window, null, (source, result) =>
+                resolve(source.choose_finish(result) === 'confirm'));
+        });
+    }
+
+    /**
+     * Walk the cache directory in batches, handing each Gio.FileInfo to `onInfo`.
+     * A missing directory is not an error: nothing has been cached yet.
+     *
+     * @param {string} attributes the Gio file attributes to request
+     * @param {Function} onInfo called per entry
+     * @param {Function} onDone called once, when the walk finishes
+     */
+    _walkCache(attributes, onInfo, onDone) {
+        artCacheDir().enumerate_children_async(
+            attributes, Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT, null,
+            (dir, result) => {
+                let enumerator;
+                try {
+                    enumerator = dir.enumerate_children_finish(result);
+                } catch {
+                    onDone();
+                    return;
+                }
+
+                const readBatch = () => {
+                    enumerator.next_files_async(
+                        ENUMERATE_BATCH, GLib.PRIORITY_DEFAULT, null,
+                        (source, batch) => {
+                            let infos;
+                            try {
+                                infos = source.next_files_finish(batch);
+                            } catch {
+                                onDone();
+                                return;
+                            }
+                            if (infos.length === 0) {
+                                onDone();
+                                return;
+                            }
+                            infos.forEach(onInfo);
+                            readBatch();
+                        });
+                };
+                readBatch();
+            });
+    }
+
+    _refreshCacheStatus(row) {
+        row.subtitle = _('Measuring…');
+
+        let files = 0;
+        let bytes = 0;
+        this._walkCache(
+            `${Gio.FILE_ATTRIBUTE_STANDARD_NAME},${Gio.FILE_ATTRIBUTE_STANDARD_SIZE}`,
+            info => {
+                files++;
+                bytes += info.get_size();
+            },
+            () => {
+                if (files === 0) {
+                    row.subtitle = _('Nothing cached.');
+                    return;
+                }
+                const counted = files === 1 ? _('1 file') : `${files} ${_('files')}`;
+                row.subtitle = `${counted} · ${GLib.format_size(bytes)}`;
+            });
+    }
+
+    async _onClearCache(window, status) {
+        const ok = await this._confirm(window,
+            _('Clear the album art cache?'),
+            _('Every downloaded cover is deleted from disk. Artwork for the tracks you play next is downloaded again.'),
+            _('Clear'));
+        if (!ok)
+            return;
+
+        status.subtitle = _('Clearing…');
+
+        const dir = artCacheDir();
+        const names = [];
+        this._walkCache(Gio.FILE_ATTRIBUTE_STANDARD_NAME,
+            info => names.push(info.get_name()),
+            () => {
+                /* The extension may be downloading into this directory right now,
+                 * so a file vanishing underneath us is expected, not an error. */
+                let outstanding = names.length;
+                if (outstanding === 0) {
+                    this._refreshCacheStatus(status);
+                    return;
+                }
+
+                for (const name of names) {
+                    dir.get_child(name).delete_async(
+                        GLib.PRIORITY_DEFAULT, null, (file, result) => {
+                            try {
+                                file.delete_finish(result);
+                            } catch {
+                                /* Already gone. */
+                            }
+                            if (--outstanding === 0)
+                                this._refreshCacheStatus(status);
+                        });
+                }
+            });
+    }
+
+    async _onReset(window, settings) {
+        const ok = await this._confirm(window,
+            _('Reset all settings?'),
+            _('Every option returns to its default. This cannot be undone.'),
+            _('Reset'));
+        if (!ok)
+            return;
+
+        /* Ask the schema rather than listing keys here, so a key added later is
+         * reset without anyone remembering to update this. */
+        for (const key of settings.settings_schema.list_keys())
+            settings.reset(key);
     }
 }

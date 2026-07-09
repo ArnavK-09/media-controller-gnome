@@ -14,10 +14,9 @@ import {ArtCache} from './artCache.js';
 import {MediaCard} from './mediaCard.js';
 import {MprisManager} from './mpris.js';
 import {ScrollingLabel} from './scrollingLabel.js';
+import {playPauseIconName, seekOffset} from './transport.js';
 
 const ROLE = 'media-controller';
-
-const US_PER_SECOND = 1000000;
 
 /* `atEnd` positions are appended after everything already in that panel box —
  * for "far right" that means past the quick settings menu. */
@@ -233,8 +232,7 @@ class MediaIndicator extends PanelMenu.Button {
 
     /** @param {number} direction -1 to rewind, 1 to skip ahead */
     _skip(direction) {
-        const step = this._settings.get_int('seek-step-seconds') * US_PER_SECOND;
-        this._manager.activePlayer?.seek(direction * step);
+        this._manager.activePlayer?.seek(seekOffset(this._settings, direction));
     }
 
     _panelButton(iconName, onClick) {
@@ -318,9 +316,7 @@ class MediaIndicator extends PanelMenu.Button {
             this._playButton.visible || this._nextButton.visible ||
             this._backButton.visible || this._forwardButton.visible;
 
-        this._playButton.child.icon_name = player.isPlaying
-            ? 'media-playback-pause-symbolic'
-            : 'media-playback-start-symbolic';
+        this._playButton.child.icon_name = playPauseIconName(player);
 
         this._setSensitive(this._prevButton, player.canGoPrevious);
         this._setSensitive(this._nextButton, player.canGoNext);

@@ -16,19 +16,23 @@ import Gio from 'gi://Gio';
 import GioUnix from 'gi://GioUnix';
 import St from 'gi://St';
 
-/* Identity is a display name, so a player calling itself something this broad
- * must not be fuzzy-matched against the desktop file index — "Music" alone
- * would happily pick the first music app on the system. Such a name is still
- * tried as an exact desktop id and icon name. */
-const GENERIC_NAMES = new Set([
-    'music', 'media', 'player', 'media-player', 'audio', 'video', 'sound',
-    'browser', 'web', 'stream', 'radio', 'podcast',
-]);
-
 /** Desktop ids, icon names and identities disagree on case and punctuation. */
 function normalize(text) {
     return text.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
+
+/* Identity is a display name, so a player calling itself something this broad
+ * must not be fuzzy-matched against the desktop file index — "Music" alone
+ * would happily pick the first music app on the system. Such a name is still
+ * tried as an exact desktop id and icon name.
+ *
+ * Normalized on the way in so the comparison is against the same shape the
+ * lookup uses: a DesktopEntry of "Music" and an Identity of "Media Player" both
+ * have to land in here, and neither matches these words verbatim. */
+const GENERIC_NAMES = new Set([
+    'music', 'media', 'player', 'media-player', 'audio', 'video', 'sound',
+    'browser', 'web', 'stream', 'radio', 'podcast',
+].map(normalize));
 
 /** "Google Chrome" -> "google-chrome" */
 function slugify(text) {
@@ -71,7 +75,7 @@ function idNamesApp(id, wanted) {
  */
 function searchedIcon(name) {
     const wanted = normalize(name);
-    if (!wanted || GENERIC_NAMES.has(name))
+    if (!wanted || GENERIC_NAMES.has(wanted))
         return null;
 
     for (const group of GioUnix.DesktopAppInfo.search(name)) {

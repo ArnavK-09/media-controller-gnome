@@ -3,6 +3,7 @@ SRC     = src
 INSTALL_DIR = $(HOME)/.local/share/gnome-shell/extensions/$(UUID)
 SOURCES = $(SRC)/extension.js $(SRC)/prefs.js $(SRC)/mpris.js $(SRC)/mediaCard.js \
           $(SRC)/artCache.js $(SRC)/playerIcons.js $(SRC)/scrollingLabel.js \
+          $(SRC)/transport.js $(SRC)/paths.js \
           $(SRC)/metadata.json $(SRC)/stylesheet.css
 
 .PHONY: all schemas install uninstall enable disable pack check logs prefs clean
@@ -51,6 +52,8 @@ pack: schemas
 		--extra-source=artCache.js \
 		--extra-source=playerIcons.js \
 		--extra-source=scrollingLabel.js \
+		--extra-source=transport.js \
+		--extra-source=paths.js \
 		--extra-source=$(CURDIR)/LICENSE \
 		--schema=schemas/org.gnome.shell.extensions.media-controller.gschema.xml \
 		--force

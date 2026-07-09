@@ -14,6 +14,12 @@
     <value nick="right-to-left" value="1"/>
   </enum>
 
+  <enum id="org.gnome.shell.extensions.media-controller.card-art-size">
+    <value nick="small" value="0"/>
+    <value nick="medium" value="1"/>
+    <value nick="large" value="2"/>
+  </enum>
+
   <schema id="org.gnome.shell.extensions.media-controller"
           path="/org/gnome/shell/extensions/media-controller/">
 
@@ -110,6 +116,13 @@
     <key name="card-show-art" type="b">
       <default>true</default>
       <summary>Show album art in the card</summary>
+    </key>
+
+    <key name="card-art-size"
+         enum="org.gnome.shell.extensions.media-controller.card-art-size">
+      <default>'medium'</default>
+      <summary>How large the album art is drawn in the card</summary>
+      <description>Only has an effect while card-show-art is set. The fallback player icon scales to match.</description>
     </key>
 
     <key name="card-show-seek-bar" type="b">

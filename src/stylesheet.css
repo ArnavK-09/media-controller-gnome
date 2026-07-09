@@ -77,10 +77,9 @@
   spacing: 12px;
 }
 
+/* Width, height and border-radius follow the card-art-size setting, so they are
+ * applied inline alongside the artwork's background-image. */
 .mc-art {
-  width: 88px;
-  height: 88px;
-  border-radius: 16px;
   background-color: rgba(127, 127, 127, 0.2);
   background-size: cover;
 }
