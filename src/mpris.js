@@ -1,0 +1,482 @@
+/* mpris.js
+ *
+ * Talks to any application implementing the MPRIS2 spec on the session bus.
+ * Exposes a single `MprisManager` that tracks every running player and picks
+ * one "active" player for the UI to render.
+ */
+
+import Gio from 'gi://Gio';
+import GioUnix from 'gi://GioUnix';
+import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
+
+const MPRIS_PATH = '/org/mpris/MediaPlayer2';
+const MPRIS_PREFIX = 'org.mpris.MediaPlayer2.';
+const PLAYER_IFACE = 'org.mpris.MediaPlayer2.Player';
+const PROPS_IFACE = 'org.freedesktop.DBus.Properties';
+
+/* playerctld mirrors whichever player is active, which would show up as a
+ * duplicate of a player we already track. */
+const IGNORED_BUS_NAMES = ['org.mpris.MediaPlayer2.playerctld'];
+
+const DBusIface = `
+<node>
+  <interface name="org.freedesktop.DBus">
+    <method name="ListNames">
+      <arg type="as" direction="out" name="names"/>
+    </method>
+    <signal name="NameOwnerChanged">
+      <arg type="s" name="name"/>
+      <arg type="s" name="oldOwner"/>
+      <arg type="s" name="newOwner"/>
+    </signal>
+  </interface>
+</node>`;
+
+const MprisIface = `
+<node>
+  <interface name="org.mpris.MediaPlayer2">
+    <method name="Raise"/>
+    <method name="Quit"/>
+    <property name="Identity" type="s" access="read"/>
+    <property name="DesktopEntry" type="s" access="read"/>
+    <property name="CanRaise" type="b" access="read"/>
+  </interface>
+</node>`;
+
+const PlayerIface = `
+<node>
+  <interface name="org.mpris.MediaPlayer2.Player">
+    <method name="PlayPause"/>
+    <method name="Play"/>
+    <method name="Pause"/>
+    <method name="Stop"/>
+    <method name="Next"/>
+    <method name="Previous"/>
+    <method name="Seek">
+      <arg type="x" direction="in" name="offset"/>
+    </method>
+    <method name="SetPosition">
+      <arg type="o" direction="in" name="trackId"/>
+      <arg type="x" direction="in" name="position"/>
+    </method>
+    <property name="PlaybackStatus" type="s" access="read"/>
+    <property name="Metadata" type="a{sv}" access="read"/>
+    <property name="Position" type="x" access="read"/>
+    <property name="CanPlay" type="b" access="read"/>
+    <property name="CanPause" type="b" access="read"/>
+    <property name="CanGoNext" type="b" access="read"/>
+    <property name="CanGoPrevious" type="b" access="read"/>
+    <property name="CanSeek" type="b" access="read"/>
+    <signal name="Seeked">
+      <arg type="x" name="position"/>
+    </signal>
+  </interface>
+</node>`;
+
+const DBusProxy = Gio.DBusProxy.makeProxyWrapper(DBusIface);
+const MprisProxy = Gio.DBusProxy.makeProxyWrapper(MprisIface);
+const PlayerProxy = Gio.DBusProxy.makeProxyWrapper(PlayerIface);
+
+/** Unwrap a GLib.Variant coming out of an a{sv} without assuming its type. */
+function unwrap(variant) {
+    if (!variant)
+        return null;
+    try {
+        return variant.deep_unpack();
+    } catch {
+        return null;
+    }
+}
+
+/** MPRIS metadata is famously inconsistent; coerce whatever we get to a string. */
+function asString(value) {
+    if (value === null || value === undefined)
+        return '';
+    if (Array.isArray(value))
+        return value.filter(v => typeof v === 'string' && v).join(', ');
+    if (typeof value === 'string')
+        return value;
+    return String(value);
+}
+
+function asNumber(value) {
+    if (typeof value === 'bigint')
+        return Number(value);
+    if (typeof value === 'number')
+        return value;
+    return 0;
+}
+
+export const MprisPlayer = GObject.registerClass({
+    Signals: {
+        'changed': {},
+        'seeked': {param_types: [GObject.TYPE_INT64]},
+    },
+}, class MprisPlayer extends GObject.Object {
+    _init(busName) {
+        super._init();
+
+        this.busName = busName;
+        this._destroyed = false;
+        this._cancellable = new Gio.Cancellable();
+        this._iconCacheKey = null;
+        this._iconCache = null;
+
+        this._playerProxy = null;
+        this._appProxy = null;
+        this._propsChangedId = 0;
+        this._seekedId = 0;
+
+        new PlayerProxy(Gio.DBus.session, busName, MPRIS_PATH, (proxy, error) => {
+            if (this._destroyed)
+                return;
+            if (error) {
+                console.warn(`media-controller: player proxy for ${busName}: ${error.message}`);
+                return;
+            }
+            this._playerProxy = proxy;
+            this._propsChangedId = proxy.connect('g-properties-changed',
+                () => this.emit('changed'));
+            this._seekedId = proxy.connectSignal('Seeked',
+                (_p, _sender, [position]) => this.emit('seeked', asNumber(position)));
+            this.emit('changed');
+        }, this._cancellable, Gio.DBusProxyFlags.NONE);
+
+        new MprisProxy(Gio.DBus.session, busName, MPRIS_PATH, (proxy, error) => {
+            if (this._destroyed)
+                return;
+            if (error) {
+                /* The app interface is optional in practice; not fatal. */
+                return;
+            }
+            this._appProxy = proxy;
+            this.emit('changed');
+        }, this._cancellable, Gio.DBusProxyFlags.NONE);
+    }
+
+    get ready() {
+        return this._playerProxy !== null;
+    }
+
+    _meta(key) {
+        const metadata = this._playerProxy?.Metadata;
+        if (!metadata)
+            return null;
+        return unwrap(metadata[key]);
+    }
+
+    get title() {
+        return asString(this._meta('xesam:title'));
+    }
+
+    get artist() {
+        return asString(this._meta('xesam:artist'));
+    }
+
+    get album() {
+        return asString(this._meta('xesam:album'));
+    }
+
+    get artUrl() {
+        return asString(this._meta('mpris:artUrl'));
+    }
+
+    get trackId() {
+        return asString(this._meta('mpris:trackid'));
+    }
+
+    /** Track length in microseconds, or 0 when the player does not report it. */
+    get length() {
+        return asNumber(this._meta('mpris:length'));
+    }
+
+    get status() {
+        return this._playerProxy?.PlaybackStatus ?? 'Stopped';
+    }
+
+    get isPlaying() {
+        return this.status === 'Playing';
+    }
+
+    /* Some players omit the Can* properties entirely. Assume the capability is
+     * present in that case so we do not grey out buttons that actually work. */
+    get canPlay() {
+        return this._playerProxy?.CanPlay ?? true;
+    }
+
+    get canGoNext() {
+        return this._playerProxy?.CanGoNext ?? true;
+    }
+
+    get canGoPrevious() {
+        return this._playerProxy?.CanGoPrevious ?? true;
+    }
+
+    get canSeek() {
+        return this._playerProxy?.CanSeek ?? false;
+    }
+
+    get canRaise() {
+        return this._appProxy?.CanRaise ?? false;
+    }
+
+    get identity() {
+        return this._appProxy?.Identity ?? this.busName.replace(MPRIS_PREFIX, '');
+    }
+
+    get desktopEntry() {
+        return this._appProxy?.DesktopEntry ?? '';
+    }
+
+    /** Best-effort app icon for this player. Read on every UI sync, so cached. */
+    get appIcon() {
+        const entry = this.desktopEntry;
+        if (this._iconCacheKey === entry)
+            return this._iconCache;
+
+        let icon = null;
+        if (entry) {
+            const id = entry.endsWith('.desktop') ? entry : `${entry}.desktop`;
+            icon = GioUnix.DesktopAppInfo.new(id)?.get_icon() ?? null;
+        }
+        icon ??= Gio.ThemedIcon.new('audio-x-generic-symbolic');
+
+        this._iconCacheKey = entry;
+        this._iconCache = icon;
+        return icon;
+    }
+
+    /* Any of these can race with the player disappearing from the bus, so every
+     * call swallows its own error rather than taking down the shell. */
+    _call(method) {
+        if (!this._playerProxy)
+            return;
+        try {
+            this._playerProxy[`${method}Remote`](() => {});
+        } catch (e) {
+            console.warn(`media-controller: ${method} failed: ${e.message}`);
+        }
+    }
+
+    playPause() {
+        this._call('PlayPause');
+    }
+
+    next() {
+        this._call('Next');
+    }
+
+    previous() {
+        this._call('Previous');
+    }
+
+    raise() {
+        if (!this._appProxy || !this.canRaise)
+            return;
+        try {
+            this._appProxy.RaiseRemote(() => {});
+        } catch (e) {
+            console.warn(`media-controller: Raise failed: ${e.message}`);
+        }
+    }
+
+    /**
+     * The Position property is intentionally excluded from PropertiesChanged by
+     * the MPRIS spec, so a cached read would be stale. Always ask the bus.
+     *
+     * @returns {Promise<number>} position in microseconds
+     */
+    getPosition() {
+        return new Promise(resolve => {
+            if (!this._playerProxy) {
+                resolve(0);
+                return;
+            }
+            Gio.DBus.session.call(
+                this.busName, MPRIS_PATH, PROPS_IFACE, 'Get',
+                new GLib.Variant('(ss)', [PLAYER_IFACE, 'Position']),
+                new GLib.VariantType('(v)'), Gio.DBusCallFlags.NONE, -1,
+                this._cancellable,
+                (connection, result) => {
+                    try {
+                        const [value] = connection.call_finish(result).deep_unpack();
+                        resolve(asNumber(value.deep_unpack()));
+                    } catch {
+                        resolve(0);
+                    }
+                });
+        });
+    }
+
+    /**
+     * @param {number} position absolute position in microseconds
+     */
+    setPosition(position) {
+        if (!this._playerProxy || !this.canSeek)
+            return;
+
+        const trackId = this.trackId;
+        try {
+            /* SetPosition needs a valid object path. Players that report a bogus
+             * trackid (or none) get a relative Seek instead. */
+            if (trackId && trackId.startsWith('/')) {
+                this._playerProxy.SetPositionRemote(trackId, position, () => {});
+            } else {
+                this.getPosition().then(current => {
+                    this._playerProxy?.SeekRemote(position - current, () => {});
+                });
+            }
+        } catch (e) {
+            console.warn(`media-controller: seek failed: ${e.message}`);
+        }
+    }
+
+    destroy() {
+        this._destroyed = true;
+        this._cancellable.cancel();
+
+        if (this._playerProxy) {
+            if (this._propsChangedId)
+                this._playerProxy.disconnect(this._propsChangedId);
+            if (this._seekedId)
+                this._playerProxy.disconnectSignal(this._seekedId);
+        }
+        this._propsChangedId = 0;
+        this._seekedId = 0;
+        this._playerProxy = null;
+        this._appProxy = null;
+    }
+});
+
+export const MprisManager = GObject.registerClass({
+    Signals: {
+        /* Emitted when the active player, or anything about it, changes. */
+        'changed': {},
+    },
+}, class MprisManager extends GObject.Object {
+    _init() {
+        super._init();
+
+        this._players = new Map();
+        this._playerSignals = new Map();
+        this._active = null;
+        this._destroyed = false;
+        this._cancellable = new Gio.Cancellable();
+
+        this._dbusProxy = new DBusProxy(Gio.DBus.session,
+            'org.freedesktop.DBus', '/org/freedesktop/DBus',
+            (proxy, error) => {
+                if (this._destroyed || error)
+                    return;
+                this._nameOwnerId = proxy.connectSignal('NameOwnerChanged',
+                    (_p, _sender, [name, oldOwner, newOwner]) =>
+                        this._onNameOwnerChanged(name, oldOwner, newOwner));
+                this._loadExistingPlayers();
+            }, this._cancellable, Gio.DBusProxyFlags.NONE);
+    }
+
+    get activePlayer() {
+        return this._active;
+    }
+
+    get players() {
+        return [...this._players.values()];
+    }
+
+    _loadExistingPlayers() {
+        this._dbusProxy.ListNamesRemote(([names], error) => {
+            if (this._destroyed || error)
+                return;
+            for (const name of names) {
+                if (this._isPlayerName(name))
+                    this._addPlayer(name);
+            }
+            this._selectActive();
+        });
+    }
+
+    _isPlayerName(name) {
+        return name.startsWith(MPRIS_PREFIX) && !IGNORED_BUS_NAMES.includes(name);
+    }
+
+    _onNameOwnerChanged(name, oldOwner, newOwner) {
+        if (!this._isPlayerName(name))
+            return;
+
+        if (newOwner && !oldOwner)
+            this._addPlayer(name);
+        else if (oldOwner && !newOwner)
+            this._removePlayer(name);
+        else
+            return;
+
+        this._selectActive();
+    }
+
+    _addPlayer(busName) {
+        if (this._players.has(busName))
+            return;
+
+        const player = new MprisPlayer(busName);
+        this._players.set(busName, player);
+        this._playerSignals.set(busName, player.connect('changed', () => {
+            this._selectActive();
+            this.emit('changed');
+        }));
+    }
+
+    _removePlayer(busName) {
+        const player = this._players.get(busName);
+        if (!player)
+            return;
+
+        const signalId = this._playerSignals.get(busName);
+        if (signalId)
+            player.disconnect(signalId);
+        this._playerSignals.delete(busName);
+        this._players.delete(busName);
+
+        if (this._active === player)
+            this._active = null;
+        player.destroy();
+    }
+
+    /**
+     * Prefer whatever is actually playing. Otherwise keep the current player so
+     * the panel does not jump around when a background player updates metadata.
+     */
+    _selectActive() {
+        const previous = this._active;
+
+        if (!this._active || !this._players.has(this._active.busName))
+            this._active = null;
+
+        if (!this._active?.isPlaying) {
+            const playing = this.players.find(p => p.isPlaying);
+            if (playing)
+                this._active = playing;
+        }
+
+        if (!this._active || !this._players.has(this._active.busName))
+            this._active = this.players.find(p => p.ready) ?? null;
+
+        if (previous !== this._active)
+            this.emit('changed');
+    }
+
+    destroy() {
+        this._destroyed = true;
+        this._cancellable.cancel();
+
+        if (this._dbusProxy && this._nameOwnerId)
+            this._dbusProxy.disconnectSignal(this._nameOwnerId);
+        this._nameOwnerId = 0;
+        this._dbusProxy = null;
+
+        for (const busName of [...this._players.keys()])
+            this._removePlayer(busName);
+
+        this._active = null;
+    }
+});

@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="media-controller">
+
+  <enum id="org.gnome.shell.extensions.media-controller.panel-position">
+    <value nick="far-left" value="0"/>
+    <value nick="left" value="1"/>
+    <value nick="center" value="2"/>
+    <value nick="right" value="3"/>
+    <value nick="far-right" value="4"/>
+  </enum>
+
+  <schema id="org.gnome.shell.extensions.media-controller"
+          path="/org/gnome/shell/extensions/media-controller/">
+
+    <key name="panel-position"
+         enum="org.gnome.shell.extensions.media-controller.panel-position">
+      <default>'right'</default>
+      <summary>Position in the top panel</summary>
+      <description>Which panel box the indicator is placed in.</description>
+    </key>
+
+    <key name="show-previous" type="b">
+      <default>true</default>
+      <summary>Show the previous button in the panel</summary>
+    </key>
+
+    <key name="show-play-pause" type="b">
+      <default>true</default>
+      <summary>Show the play/pause button in the panel</summary>
+    </key>
+
+    <key name="show-next" type="b">
+      <default>true</default>
+      <summary>Show the next button in the panel</summary>
+    </key>
+
+    <key name="show-player-icon" type="b">
+      <default>true</default>
+      <summary>Show the player's application icon in the panel</summary>
+    </key>
+
+    <key name="show-title" type="b">
+      <default>true</default>
+      <summary>Show the track title in the panel</summary>
+    </key>
+
+    <key name="show-artist" type="b">
+      <default>false</default>
+      <summary>Show the artist in the panel</summary>
+    </key>
+
+    <key name="max-text-length" type="i">
+      <default>28</default>
+      <range min="6" max="80"/>
+      <summary>Maximum panel text length</summary>
+      <description>Panel text longer than this is truncated with an ellipsis.</description>
+    </key>
+
+    <key name="controls-on-left" type="b">
+      <default>false</default>
+      <summary>Place the playback controls before the text</summary>
+    </key>
+
+    <key name="hide-when-inactive" type="b">
+      <default>true</default>
+      <summary>Hide the indicator when no player is running</summary>
+    </key>
+
+    <key name="card-show-art" type="b">
+      <default>true</default>
+      <summary>Show album art in the card</summary>
+    </key>
+
+    <key name="card-show-seek-bar" type="b">
+      <default>true</default>
+      <summary>Show the seek bar in the card</summary>
+    </key>
+
+    <key name="card-width" type="i">
+      <default>340</default>
+      <range min="280" max="560"/>
+      <summary>Card width in pixels</summary>
+    </key>
+
+  </schema>
+</schemalist>

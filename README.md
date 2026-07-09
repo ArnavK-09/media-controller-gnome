@@ -1,0 +1,87 @@
+# Media Controller
+
+A GNOME Shell extension that puts whatever is currently playing into the top
+panel, with playback controls and an iOS-style now-playing card.
+
+Works with any player that speaks MPRIS2 — Spotify, Firefox, Chrome, VLC,
+Rhythmbox, mpv, and so on.
+
+## Features
+
+- **Panel indicator** showing the player icon, track title and artist.
+- **Playback controls** in the panel: previous, play/pause, next. Each button can
+  be shown or hidden independently.
+- **Now-playing card** when you click the indicator: album art, title, artist and
+  album, a draggable seek bar with elapsed and remaining time, and large
+  transport controls.
+- **Configurable panel position**: far left, left, center, right, or far right.
+- Follows the shell theme, including light/dark and your accent color.
+
+## Requirements
+
+- GNOME Shell 48, 49 or 50
+- A player exposing the MPRIS2 D-Bus interface
+
+## Install
+
+```sh
+make install
+```
+
+Then log out and back in — GNOME Shell only scans for new extensions at startup,
+and on Wayland it cannot be restarted in place. After logging back in:
+
+```sh
+make enable
+make prefs     # open the preferences window
+```
+
+## Development
+
+```sh
+make check     # syntax-check the JS, schema and metadata
+make schemas   # compile the GSettings schema
+make pack      # build a distributable zip
+make logs      # follow this extension's shell log output
+make uninstall
+```
+
+Note that changes to an already-loaded extension also require a log out and back
+in on Wayland, because the shell caches ES modules for the life of the process.
+
+## Settings
+
+| Setting | Default | Description |
+| --- | --- | --- |
+| `panel-position` | `right` | `far-left`, `left`, `center`, `right`, `far-right` |
+| `show-previous` / `show-play-pause` / `show-next` | on | Panel transport buttons |
+| `show-player-icon` | on | Application icon in the panel |
+| `show-title` / `show-artist` | on / off | Panel text |
+| `max-text-length` | 28 | Panel text is ellipsized past this |
+| `controls-on-left` | off | Put the buttons before the text |
+| `hide-when-inactive` | on | Hide the indicator when no player is running |
+| `card-show-art` | on | Album art in the card |
+| `card-show-seek-bar` | on | Seek bar in the card |
+| `card-width` | 340 | Card width in pixels |
+
+## Layout
+
+| File | Purpose |
+| --- | --- |
+| [src/extension.js](src/extension.js) | Panel indicator, menu, panel placement |
+| [src/mediaCard.js](src/mediaCard.js) | The now-playing card |
+| [src/mpris.js](src/mpris.js) | MPRIS2 D-Bus client and player tracking |
+| [src/artCache.js](src/artCache.js) | Resolves and caches album art |
+| [src/prefs.js](src/prefs.js) | Preferences window |
+
+`mpris.js` and `artCache.js` deliberately import only `gi://` modules, never
+`resource:///org/gnome/shell/…`, so they can be exercised outside the shell.
+
+## Notes
+
+Album art from streaming players and browsers arrives as an `https://` URL. It is
+downloaded once and cached under `~/.cache/media-controller/art/`.
+
+Players that do not report a track length (most web players) simply do not show a
+seek bar. `playerctld` is ignored, since it mirrors another player that is
+already tracked.
