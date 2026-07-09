@@ -98,7 +98,12 @@
 }
 
 .mc-card-actions {
-  spacing: 2px;
+  spacing: 4px;
+}
+
+/* The player icon and the equalizer, side by side. */
+.mc-card-status {
+  spacing: 6px;
 }
 
 .mc-app-button {
@@ -108,6 +113,24 @@
 
 .mc-app-button:hover {
   background-color: rgba(127, 127, 127, 0.25);
+}
+
+/* ---------- Equalizer ---------- */
+
+/* Height is fixed so the bars grow from a steady baseline without reflowing the
+ * header. The right padding matches the gear button's own 6px, so the bars line
+ * up with the gear icon above them rather than with the button's edge. */
+.mc-equalizer {
+  height: 12px;
+  spacing: 2px;
+  padding-right: 6px;
+}
+
+/* Follows the desktop accent colour, the same source the seek slider uses. */
+.mc-eq-bar {
+  width: 3px;
+  border-radius: 2px;
+  background-color: -st-accent-color;
 }
 
 /* ---------- Seek bar ---------- */

@@ -13,6 +13,7 @@ import St from 'gi://St';
 import {Slider} from 'resource:///org/gnome/shell/ui/slider.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
+import {Equalizer} from './equalizer.js';
 import {US_PER_SECOND, playPauseIconName, seekOffset} from './transport.js';
 
 const POSITION_POLL_SECONDS = 1;
@@ -169,10 +170,32 @@ export const MediaCard = GObject.registerClass({
         textBox.add_child(this._subtitleLabel);
         header.add_child(textBox);
 
+        /* A full-height column down the right edge: the gear pinned to the top
+         * corner, and the player icon plus equalizer centred against the art. */
         const actions = new St.BoxLayout({
             style_class: 'mc-card-actions',
+            orientation: Clutter.Orientation.VERTICAL,
+            y_expand: true,
+            x_align: Clutter.ActorAlign.END,
+        });
+
+        this._prefsButton = new St.Button({
+            style_class: 'mc-app-button',
+            can_focus: true,
+            x_align: Clutter.ActorAlign.END,
+            y_align: Clutter.ActorAlign.START,
+            child: new St.Icon({icon_name: 'emblem-system-symbolic', icon_size: 16}),
+        });
+        this._prefsButton.connect('clicked', () => this.emit('open-preferences'));
+        actions.add_child(this._prefsButton);
+
+        /* Expanding is what pushes this off the gear and centres it. */
+        const status = new St.BoxLayout({
+            style_class: 'mc-card-status',
             orientation: Clutter.Orientation.HORIZONTAL,
+            x_align: Clutter.ActorAlign.END,
             y_align: Clutter.ActorAlign.CENTER,
+            y_expand: true,
         });
 
         this._appButton = new St.Button({
@@ -186,16 +209,11 @@ export const MediaCard = GObject.registerClass({
             this._player?.raise();
             this.emit('activated');
         });
-        actions.add_child(this._appButton);
+        status.add_child(this._appButton);
 
-        this._prefsButton = new St.Button({
-            style_class: 'mc-app-button',
-            can_focus: true,
-            y_align: Clutter.ActorAlign.CENTER,
-            child: new St.Icon({icon_name: 'emblem-system-symbolic', icon_size: 16}),
-        });
-        this._prefsButton.connect('clicked', () => this.emit('open-preferences'));
-        actions.add_child(this._prefsButton);
+        this._equalizer = new Equalizer();
+        status.add_child(this._equalizer);
+        actions.add_child(status);
 
         header.add_child(actions);
         this.add_child(header);
@@ -367,6 +385,7 @@ export const MediaCard = GObject.registerClass({
     /** The card only polls Position while it is actually on screen. */
     setActive(active) {
         this._active = active;
+        this._equalizer.setActive(active);
         this._updateTimer();
         if (active)
             this._refreshPosition();
@@ -490,6 +509,8 @@ export const MediaCard = GObject.registerClass({
             this._appButton.visible = false;
             this._backButton.visible = false;
             this._forwardButton.visible = false;
+            this._equalizer.visible = false;
+            this._equalizer.setPlaying(false);
             this._length = 0;
             this._updateArt();
             this._updateTimer();
@@ -508,6 +529,9 @@ export const MediaCard = GObject.registerClass({
         this._subtitleLabel.visible = !!subtitle;
 
         this._playButton.child.icon_name = playPauseIconName(player);
+
+        this._equalizer.visible = true;
+        this._equalizer.setPlaying(player.isPlaying);
 
         this._setSensitive(this._prevButton, player.canGoPrevious);
         this._setSensitive(this._nextButton, player.canGoNext);
