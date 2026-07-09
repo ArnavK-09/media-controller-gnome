@@ -34,6 +34,7 @@ class ScrollingLabel extends St.Widget {
         this._width = 200;
         this._scrolling = false;
         this._speed = 30;
+        this._rightToLeft = false;
 
         /* The scroll distance currently animating; 0 when nothing is moving. */
         this._distance = 0;
@@ -77,12 +78,15 @@ class ScrollingLabel extends St.Widget {
     /**
      * @param {boolean} enabled
      * @param {number} speed pixels per second
+     * @param {boolean} rightToLeft text travels leftward, as it is read
      */
-    setScrolling(enabled, speed) {
-        if (enabled === this._scrolling && speed === this._speed)
+    setScrolling(enabled, speed, rightToLeft) {
+        if (enabled === this._scrolling && speed === this._speed &&
+            rightToLeft === this._rightToLeft)
             return;
         this._scrolling = enabled;
         this._speed = speed;
+        this._rightToLeft = rightToLeft;
         this._update(true);
     }
 
@@ -138,12 +142,17 @@ class ScrollingLabel extends St.Widget {
         this._loop();
     }
 
-    /* One pass shifts the box by exactly one copy plus the gap, which puts the
-     * second copy where the first was — so resetting to 0 is invisible. */
+    /* One pass shifts the box by exactly one copy plus the gap. Because the two
+     * copies are identical, that lands on the same picture it started from, so
+     * snapping back for the next pass is invisible — in either direction. */
     _loop() {
-        this._box.translation_x = 0;
+        const [from, to] = this._rightToLeft
+            ? [0, -this._distance]
+            : [-this._distance, 0];
+
+        this._box.translation_x = from;
         this._box.ease({
-            translation_x: -this._distance,
+            translation_x: to,
             duration: (this._distance / Math.max(1, this._speed)) * 1000,
             delay: PAUSE_MS,
             mode: Clutter.AnimationMode.LINEAR,

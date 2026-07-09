@@ -20,9 +20,11 @@
   spacing: 6px;
 }
 
+/* Same fully round radius as the control buttons, so the icon-plus-title hover
+ * fill reads as a pill of the same family rather than a rounded box. */
 .mc-panel-text-button {
-  border-radius: 8px;
-  padding: 2px 6px;
+  border-radius: 99px;
+  padding: 2px 8px;
 }
 
 .mc-panel-label {

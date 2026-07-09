@@ -88,6 +88,7 @@ class MediaIndicator extends PanelMenu.Button {
             'changed::panel-text-width',
             'changed::scroll-text',
             'changed::scroll-speed',
+            'changed::scroll-direction',
             'changed::hide-when-inactive',
             'changed::controls-on-left',
         ].map(key => this._settings.connect(key, () => this.sync()));
@@ -237,7 +238,8 @@ class MediaIndicator extends PanelMenu.Button {
         const text = this._panelText(player);
         this._label.setWidth(this._settings.get_int('panel-text-width'));
         this._label.setScrolling(this._settings.get_boolean('scroll-text'),
-            this._settings.get_int('scroll-speed'));
+            this._settings.get_int('scroll-speed'),
+            this._settings.get_string('scroll-direction') === 'right-to-left');
         this._label.setText(text);
         this._label.visible = text.length > 0;
 

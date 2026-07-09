@@ -9,6 +9,11 @@
     <value nick="far-right" value="4"/>
   </enum>
 
+  <enum id="org.gnome.shell.extensions.media-controller.scroll-direction">
+    <value nick="left-to-right" value="0"/>
+    <value nick="right-to-left" value="1"/>
+  </enum>
+
   <schema id="org.gnome.shell.extensions.media-controller"
           path="/org/gnome/shell/extensions/media-controller/">
 
@@ -62,7 +67,7 @@
     </key>
 
     <key name="panel-text-width" type="i">
-      <default>200</default>
+      <default>300</default>
       <range min="60" max="600"/>
       <summary>Width of the panel text, in pixels</summary>
       <description>The track text always occupies this width. Text that does not fit is truncated with an ellipsis, or scrolled when scroll-text is set.</description>
@@ -78,6 +83,12 @@
       <default>30</default>
       <range min="10" max="120"/>
       <summary>Scrolling speed in pixels per second</summary>
+    </key>
+
+    <key name="scroll-direction"
+         enum="org.gnome.shell.extensions.media-controller.scroll-direction">
+      <default>'left-to-right'</default>
+      <summary>Which way the scrolling text travels</summary>
     </key>
 
     <key name="controls-on-left" type="b">
@@ -112,7 +123,7 @@
     </key>
 
     <key name="card-width" type="i">
-      <default>340</default>
+      <default>400</default>
       <range min="280" max="560"/>
       <summary>Card width in pixels</summary>
     </key>

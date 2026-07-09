@@ -10,6 +10,7 @@ import {ExtensionPreferences, gettext as _} from
 
 /* Index order must match the enum nicks in the GSettings schema. */
 const POSITIONS = ['far-left', 'left', 'center', 'right', 'far-right'];
+const DIRECTIONS = ['left-to-right', 'right-to-left'];
 
 /* Must be a function, not a top-level constant: gettext resolves the calling
  * extension from the stack, and at module scope no extension is registered yet. */
@@ -20,6 +21,13 @@ function positionLabels() {
         _('Center'),
         _('Right'),
         _('Far right'),
+    ];
+}
+
+function directionLabels() {
+    return [
+        _('Left to right'),
+        _('Right to left'),
     ];
 }
 
@@ -35,6 +43,22 @@ export default class MediaControllerPreferences extends ExtensionPreferences {
     _switchRow(settings, key, title, subtitle = null) {
         const row = new Adw.SwitchRow({title, subtitle});
         settings.bind(key, row, 'active', Gio.SettingsBindFlags.DEFAULT);
+        return row;
+    }
+
+    /* Adw.ComboRow has no GSettings binding for enums, so the nick list and the
+     * row's index are kept in step by hand, in both directions. */
+    _comboRow(settings, key, title, nicks, labels) {
+        const row = new Adw.ComboRow({title, model: Gtk.StringList.new(labels)});
+        row.selected = Math.max(0, nicks.indexOf(settings.get_string(key)));
+        row.connect('notify::selected', () =>
+            settings.set_string(key, nicks[row.selected]));
+        /* Keep the row honest if the value changes elsewhere (e.g. dconf). */
+        settings.connect(`changed::${key}`, () => {
+            const index = nicks.indexOf(settings.get_string(key));
+            if (index >= 0 && index !== row.selected)
+                row.selected = index;
+        });
         return row;
     }
 
@@ -64,21 +88,8 @@ export default class MediaControllerPreferences extends ExtensionPreferences {
             description: _('Where the indicator sits in the top panel.'),
         });
 
-        const positionRow = new Adw.ComboRow({
-            title: _('Position'),
-            model: Gtk.StringList.new(positionLabels()),
-        });
-        positionRow.selected = Math.max(0,
-            POSITIONS.indexOf(settings.get_string('panel-position')));
-        positionRow.connect('notify::selected', row =>
-            settings.set_string('panel-position', POSITIONS[row.selected]));
-        /* Keep the row honest if the value changes elsewhere (e.g. dconf). */
-        settings.connect('changed::panel-position', () => {
-            const index = POSITIONS.indexOf(settings.get_string('panel-position'));
-            if (index >= 0 && index !== positionRow.selected)
-                positionRow.selected = index;
-        });
-        placement.add(positionRow);
+        placement.add(this._comboRow(settings, 'panel-position', _('Position'),
+            POSITIONS, positionLabels()));
 
         placement.add(this._switchRow(settings, 'controls-on-left',
             _('Controls before text'),
@@ -113,6 +124,11 @@ export default class MediaControllerPreferences extends ExtensionPreferences {
         text.add(this._switchRow(settings, 'scroll-text',
             _('Scroll long text'),
             _('Loop text that does not fit instead of cutting it off.')));
+
+        const direction = this._comboRow(settings, 'scroll-direction',
+            _('Scrolling direction'), DIRECTIONS, directionLabels());
+        settings.bind('scroll-text', direction, 'sensitive', Gio.SettingsBindFlags.GET);
+        text.add(direction);
 
         const speed = this._spinRow(settings, 'scroll-speed',
             _('Scrolling speed'), _('In pixels per second.'), 10, 120, 5);

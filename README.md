@@ -63,8 +63,9 @@ in on Wayland, because the shell caches ES modules for the life of the process.
 | `show-seek-backward` / `show-seek-forward` | off | Panel skip buttons |
 | `show-player-icon` | on | Application icon in the panel |
 | `show-title` / `show-artist` | on / off | Panel text |
-| `panel-text-width` | 200 | Width of the panel text, in pixels |
+| `panel-text-width` | 300 | Width of the panel text, in pixels |
 | `scroll-text` | off | Scroll text wider than that, rather than ellipsizing it |
+| `scroll-direction` | `left-to-right` | `left-to-right` or `right-to-left` |
 | `scroll-speed` | 30 | Scrolling speed, in pixels per second |
 | `controls-on-left` | off | Put the buttons before the text |
 | `hide-when-inactive` | on | Hide the indicator when no player is running |
@@ -72,7 +73,7 @@ in on Wayland, because the shell caches ES modules for the life of the process.
 | `card-show-seek-bar` | on | Seek bar in the card |
 | `card-show-seek-buttons` | on | Skip buttons in the card |
 | `seek-step-seconds` | 10 | How far the skip buttons jump, in seconds |
-| `card-width` | 340 | Card width in pixels |
+| `card-width` | 400 | Card width in pixels |
 
 ## Layout
 
