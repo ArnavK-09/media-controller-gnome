@@ -8,14 +8,19 @@ Rhythmbox, mpv, and so on.
 
 ## Features
 
-- **Panel indicator** showing the player icon, track title and artist.
-- **Playback controls** in the panel: previous, play/pause, next. Each button can
-  be shown or hidden independently.
-- **Now-playing card** when you click the indicator: album art, title, artist and
-  album, a draggable seek bar with elapsed and remaining time, and large
-  transport controls.
+- **Panel indicator** showing the player icon, track title and artist, in a
+  fixed-width slot so it does not resize as tracks change.
+- **Scrolling text**, off by default: text too wide for that slot loops past it
+  carousel-style instead of being ellipsized.
+- **Playback controls** in the panel: previous, skip backward, play/pause, skip
+  forward, next. Each button can be shown or hidden independently.
+- **Now-playing card** when you click the indicator: album art, a wrapping title,
+  artist and album, a draggable seek bar with elapsed and remaining time, and
+  large transport controls including skip buttons.
 - **Configurable panel position**: far left, left, center, right, or far right.
 - Follows the shell theme, including light/dark and your accent color.
+
+Skip buttons only appear for players that support seeking.
 
 ## Requirements
 
@@ -55,13 +60,18 @@ in on Wayland, because the shell caches ES modules for the life of the process.
 | --- | --- | --- |
 | `panel-position` | `right` | `far-left`, `left`, `center`, `right`, `far-right` |
 | `show-previous` / `show-play-pause` / `show-next` | on | Panel transport buttons |
+| `show-seek-backward` / `show-seek-forward` | off | Panel skip buttons |
 | `show-player-icon` | on | Application icon in the panel |
 | `show-title` / `show-artist` | on / off | Panel text |
-| `max-text-length` | 28 | Panel text is ellipsized past this |
+| `panel-text-width` | 200 | Width of the panel text, in pixels |
+| `scroll-text` | off | Scroll text wider than that, rather than ellipsizing it |
+| `scroll-speed` | 30 | Scrolling speed, in pixels per second |
 | `controls-on-left` | off | Put the buttons before the text |
 | `hide-when-inactive` | on | Hide the indicator when no player is running |
 | `card-show-art` | on | Album art in the card |
 | `card-show-seek-bar` | on | Seek bar in the card |
+| `card-show-seek-buttons` | on | Skip buttons in the card |
+| `seek-step-seconds` | 10 | How far the skip buttons jump, in seconds |
 | `card-width` | 340 | Card width in pixels |
 
 ## Layout
@@ -70,6 +80,7 @@ in on Wayland, because the shell caches ES modules for the life of the process.
 | --- | --- |
 | [src/extension.js](src/extension.js) | Panel indicator, menu, panel placement |
 | [src/mediaCard.js](src/mediaCard.js) | The now-playing card |
+| [src/scrollingLabel.js](src/scrollingLabel.js) | The fixed-width panel label and its marquee |
 | [src/mpris.js](src/mpris.js) | MPRIS2 D-Bus client and player tracking |
 | [src/artCache.js](src/artCache.js) | Resolves and caches album art |
 | [src/prefs.js](src/prefs.js) | Preferences window |

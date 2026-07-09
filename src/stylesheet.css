@@ -13,7 +13,7 @@
 }
 
 .mc-panel-box {
-  spacing: 4px;
+  spacing: 6px;
 }
 
 .mc-panel-text {
@@ -21,8 +21,8 @@
 }
 
 .mc-panel-text-button {
-  border-radius: 6px;
-  padding: 0 2px;
+  border-radius: 8px;
+  padding: 2px 6px;
 }
 
 .mc-panel-label {
@@ -33,18 +33,22 @@
   spacing: 2px;
 }
 
+/* Equal padding on all four sides keeps the hover fill a circle around the
+ * 16px icon rather than a slab as tall as the panel. */
 .mc-panel-control {
-  border-radius: 6px;
-  padding: 0 3px;
+  border-radius: 99px;
+  padding: 4px;
 }
 
 /* Neutral grey reads correctly on both light and dark panels. */
+.mc-panel-text-button:hover,
 .mc-panel-control:hover {
-  background-color: rgba(127, 127, 127, 0.25);
+  background-color: rgba(127, 127, 127, 0.2);
 }
 
+.mc-panel-text-button:active,
 .mc-panel-control:active {
-  background-color: rgba(127, 127, 127, 0.4);
+  background-color: rgba(127, 127, 127, 0.35);
 }
 
 /* ---------- Card container ---------- */
@@ -79,9 +83,9 @@
 }
 
 .mc-art {
-  width: 72px;
-  height: 72px;
-  border-radius: 14px;
+  width: 88px;
+  height: 88px;
+  border-radius: 16px;
   background-color: rgba(127, 127, 127, 0.2);
   background-size: cover;
 }

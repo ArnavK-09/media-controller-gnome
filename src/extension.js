@@ -186,6 +186,9 @@ class MediaIndicator extends PanelMenu.Button {
         const button = new St.Button({
             style_class: 'mc-panel-control',
             can_focus: true,
+            /* Without this the button fills the panel's height and the round
+             * hover fill stretches into a slab. */
+            y_align: Clutter.ActorAlign.CENTER,
             child: new St.Icon({
                 icon_name: iconName,
                 style_class: 'system-status-icon',

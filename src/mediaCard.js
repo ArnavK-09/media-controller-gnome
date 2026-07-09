@@ -99,7 +99,7 @@ export const MediaCard = GObject.registerClass({
         });
         this._artFallback = new St.Icon({
             icon_name: 'audio-x-generic-symbolic',
-            icon_size: 32,
+            icon_size: 40,
             opacity: DIM_OPACITY,
         });
         this._artBin.set_child(this._artFallback);
