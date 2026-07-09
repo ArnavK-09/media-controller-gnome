@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* artCache.js
  *
  * Resolves an MPRIS `mpris:artUrl` to a local file path that St can paint as a

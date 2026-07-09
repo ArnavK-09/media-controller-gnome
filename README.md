@@ -77,6 +77,13 @@ in on Wayland, because the shell caches ES modules for the life of the process.
 `mpris.js` and `artCache.js` deliberately import only `gi://` modules, never
 `resource:///org/gnome/shell/…`, so they can be exercised outside the shell.
 
+## License
+
+GPL-2.0-or-later. See [LICENSE](LICENSE).
+
+This is the license required for submission to
+[extensions.gnome.org](https://extensions.gnome.org).
+
 ## Notes
 
 Album art from streaming players and browsers arrives as an `https://` URL. It is

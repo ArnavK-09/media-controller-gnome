@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* prefs.js */
 
 import Adw from 'gi://Adw';

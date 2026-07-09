@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* mpris.js
  *
  * Talks to any application implementing the MPRIS2 spec on the session bus.

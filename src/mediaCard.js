@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* mediaCard.js
  *
  * The iOS-style "now playing" card shown when the panel indicator is clicked.

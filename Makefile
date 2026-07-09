@@ -48,6 +48,7 @@ pack: schemas
 		--extra-source=mpris.js \
 		--extra-source=mediaCard.js \
 		--extra-source=artCache.js \
+		--extra-source=$(CURDIR)/LICENSE \
 		--schema=schemas/org.gnome.shell.extensions.media-controller.gschema.xml \
 		--force
 
