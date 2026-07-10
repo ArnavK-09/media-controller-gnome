@@ -41,6 +41,9 @@ make enable
 make prefs     # open the preferences window
 ```
 
+Once published, the extension can also be installed from its page on
+[extensions.gnome.org](https://extensions.gnome.org).
+
 ## Development
 
 ```sh
