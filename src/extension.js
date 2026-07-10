@@ -89,7 +89,7 @@ class MediaIndicator extends PanelMenu.Button {
         item.add_child(this._card);
         this.menu.addMenuItem(item);
 
-        this.menu.connect('open-state-changed', (_menu, open) => {
+        this._menuOpenId = this.menu.connect('open-state-changed', (_menu, open) => {
             this._card.setActive(open);
             if (open)
                 this._card.sync();
@@ -102,8 +102,6 @@ class MediaIndicator extends PanelMenu.Button {
                 this._readSettings();
                 this.sync();
             }));
-
-        this.connect('destroy', () => this._onDestroy());
 
         this.sync();
     }
@@ -341,14 +339,20 @@ class MediaIndicator extends PanelMenu.Button {
         this._box.set_child_at_index(this._controlsBox, controlsFirst ? 0 : 1);
     }
 
-    _onDestroy() {
+    destroy() {
         if (this._managerId)
             this._manager.disconnect(this._managerId);
         this._managerId = 0;
 
+        if (this._menuOpenId)
+            this.menu.disconnect(this._menuOpenId);
+        this._menuOpenId = 0;
+
         for (const id of this._settingsIds)
             this._settings.disconnect(id);
         this._settingsIds = [];
+
+        super.destroy();
     }
 });
 
