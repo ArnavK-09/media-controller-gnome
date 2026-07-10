@@ -7,7 +7,7 @@ Works with any player that speaks MPRIS2 — Spotify, Firefox, Chrome, VLC,
 Rhythmbox, mpv, and so on.
 
 <p align="center">
-  <a href="https://extensions.gnome.org/extension/YOUR_EXTENSION_ID/">
+  <a href="https://extensions.gnome.org/extension/10372/system-monitor-panel/">
     <img src="public/gnome-logo.png"
          alt="Install from GNOME Extensions"
          width="260">
@@ -15,11 +15,12 @@ Rhythmbox, mpv, and so on.
 </p>
 
 <p align="center">
-  <a href="https://extensions.gnome.org/extension/YOUR_EXTENSION_ID/">
-    <strong>📦 Install from GNOME Extensions</strong>
-  </a>
-  <br>
-  <sub>Available for GNOME Shell 48, 49 &amp; 50</sub>
+  <a href="https://extensions.gnome.org/extension/10372/system-monitor-panel/"><strong>Install from GNOME Extensions →</strong></a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/GNOME-48--50-4A86CF?logo=gnome&logoColor=white" alt="GNOME Shell">
+  <img src="https://img.shields.io/badge/License-GPL--2.0-green.svg" alt="License">
 </p>
 
 <p align="center">
