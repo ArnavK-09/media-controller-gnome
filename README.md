@@ -6,6 +6,11 @@ panel, with playback controls and an iOS-style now-playing card.
 Works with any player that speaks MPRIS2 — Spotify, Firefox, Chrome, VLC,
 Rhythmbox, mpv, and so on.
 
+<p align="center">
+  <img src="public/img-1.png" alt="The panel indicator and the now-playing card, showing album art, a seek bar and transport controls" width="700">
+</p>
+<p align="center"><em>The panel indicator and the now-playing card.</em></p>
+
 ## Features
 
 - **Panel indicator** showing the player icon, track title and artist, in a
@@ -58,6 +63,11 @@ Note that changes to an already-loaded extension also require a log out and back
 in on Wayland, because the shell caches ES modules for the life of the process.
 
 ## Settings
+
+<p align="center">
+  <img src="public/img-2.png" alt="The preferences window, on the Panel tab, with toggles for the playback controls and track information" width="600">
+</p>
+<p align="center"><em>The preferences window (<code>make prefs</code>).</em></p>
 
 | Setting | Default | Description |
 | --- | --- | --- |
