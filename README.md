@@ -7,6 +7,22 @@ Works with any player that speaks MPRIS2 — Spotify, Firefox, Chrome, VLC,
 Rhythmbox, mpv, and so on.
 
 <p align="center">
+  <a href="https://extensions.gnome.org/extension/YOUR_EXTENSION_ID/">
+    <img src="public/gnome-logo.png"
+         alt="Install from GNOME Extensions"
+         width="260">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://extensions.gnome.org/extension/YOUR_EXTENSION_ID/">
+    <strong>📦 Install from GNOME Extensions</strong>
+  </a>
+  <br>
+  <sub>Available for GNOME Shell 48, 49 &amp; 50</sub>
+</p>
+
+<p align="center">
   <img src="public/img-1.png" alt="The panel indicator and the now-playing card, showing album art, a seek bar and transport controls" width="700">
 </p>
 <p align="center"><em>The panel indicator and the now-playing card.</em></p>
@@ -46,8 +62,9 @@ make enable
 make prefs     # open the preferences window
 ```
 
-Once published, the extension can also be installed from its page on
-[extensions.gnome.org](https://extensions.gnome.org).
+Or install directly from the official GNOME Extensions website:
+
+**https://extensions.gnome.org/extension/YOUR_EXTENSION_ID/**
 
 ## Development
 
@@ -69,35 +86,35 @@ in on Wayland, because the shell caches ES modules for the life of the process.
 </p>
 <p align="center"><em>The preferences window (<code>make prefs</code>).</em></p>
 
-| Setting | Default | Description |
-| --- | --- | --- |
-| `panel-position` | `right` | `far-left`, `left`, `center`, `right`, `far-right` |
-| `show-previous` / `show-play-pause` / `show-next` | on | Panel transport buttons |
-| `show-seek-backward` / `show-seek-forward` | off | Panel skip buttons |
-| `show-player-icon` | on | Application icon in the panel |
-| `show-title` / `show-artist` | on / off | Panel text |
-| `panel-text-width` | 300 | Width of the panel text, in pixels |
-| `scroll-text` | off | Scroll text wider than that, rather than ellipsizing it |
-| `scroll-direction` | `left-to-right` | `left-to-right` or `right-to-left` |
-| `scroll-speed` | 30 | Scrolling speed, in pixels per second |
-| `controls-on-left` | off | Put the buttons before the text |
-| `hide-when-inactive` | on | Hide the indicator when no player is running |
-| `card-show-art` | on | Album art in the card |
-| `card-show-seek-bar` | on | Seek bar in the card |
-| `card-show-seek-buttons` | on | Skip buttons in the card |
-| `seek-step-seconds` | 10 | How far the skip buttons jump, in seconds |
-| `card-width` | 400 | Card width in pixels |
+| Setting                                           | Default         | Description                                             |
+| ------------------------------------------------- | --------------- | ------------------------------------------------------- |
+| `panel-position`                                  | `right`         | `far-left`, `left`, `center`, `right`, `far-right`      |
+| `show-previous` / `show-play-pause` / `show-next` | on              | Panel transport buttons                                 |
+| `show-seek-backward` / `show-seek-forward`        | off             | Panel skip buttons                                      |
+| `show-player-icon`                                | on              | Application icon in the panel                           |
+| `show-title` / `show-artist`                      | on / off        | Panel text                                              |
+| `panel-text-width`                                | 300             | Width of the panel text, in pixels                      |
+| `scroll-text`                                     | off             | Scroll text wider than that, rather than ellipsizing it |
+| `scroll-direction`                                | `left-to-right` | `left-to-right` or `right-to-left`                      |
+| `scroll-speed`                                    | 30              | Scrolling speed, in pixels per second                   |
+| `controls-on-left`                                | off             | Put the buttons before the text                         |
+| `hide-when-inactive`                              | on              | Hide the indicator when no player is running            |
+| `card-show-art`                                   | on              | Album art in the card                                   |
+| `card-show-seek-bar`                              | on              | Seek bar in the card                                    |
+| `card-show-seek-buttons`                          | on              | Skip buttons in the card                                |
+| `seek-step-seconds`                               | 10              | How far the skip buttons jump, in seconds               |
+| `card-width`                                      | 400             | Card width in pixels                                    |
 
 ## Layout
 
-| File | Purpose |
-| --- | --- |
-| [src/extension.js](src/extension.js) | Panel indicator, menu, panel placement |
-| [src/mediaCard.js](src/mediaCard.js) | The now-playing card |
+| File                                           | Purpose                                     |
+| ---------------------------------------------- | ------------------------------------------- |
+| [src/extension.js](src/extension.js)           | Panel indicator, menu, panel placement      |
+| [src/mediaCard.js](src/mediaCard.js)           | The now-playing card                        |
 | [src/scrollingLabel.js](src/scrollingLabel.js) | The fixed-width panel label and its marquee |
-| [src/mpris.js](src/mpris.js) | MPRIS2 D-Bus client and player tracking |
-| [src/artCache.js](src/artCache.js) | Resolves and caches album art |
-| [src/prefs.js](src/prefs.js) | Preferences window |
+| [src/mpris.js](src/mpris.js)                   | MPRIS2 D-Bus client and player tracking     |
+| [src/artCache.js](src/artCache.js)             | Resolves and caches album art               |
+| [src/prefs.js](src/prefs.js)                   | Preferences window                          |
 
 `mpris.js` and `artCache.js` deliberately import only `gi://` modules, never
 `resource:///org/gnome/shell/…`, so they can be exercised outside the shell.
