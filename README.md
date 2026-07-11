@@ -138,7 +138,7 @@ This is the license required for submission to
 ## Notes
 
 Album art from streaming players and browsers arrives as an `https://` URL. It is
-downloaded once and cached under `~/.cache/media-controller/art/`.
+downloaded once and cached under `~/.cache/media-controls/art/`.
 
 Players that do not report a track length (most web players) simply do not show a
 seek bar. `playerctld` is ignored, since it mirrors another player that is

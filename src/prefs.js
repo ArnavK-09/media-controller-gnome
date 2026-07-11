@@ -46,7 +46,7 @@ function artSizeLabels() {
     ];
 }
 
-export default class MediaControllerPreferences extends ExtensionPreferences {
+export default class MediaControlsPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const settings = this.getSettings();
         window.set_default_size(620, 720);

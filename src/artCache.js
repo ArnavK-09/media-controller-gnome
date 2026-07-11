@@ -30,7 +30,7 @@ export class ArtCache {
             this._cacheDir.make_directory_with_parents(null);
         } catch (e) {
             if (!e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.EXISTS))
-                console.warn(`media-controller: art cache dir: ${e.message}`);
+                console.warn(`media-controls: art cache dir: ${e.message}`);
         }
     }
 
@@ -228,7 +228,7 @@ export class ArtCache {
             return target.get_path();
         } catch (e) {
             if (!e.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
-                console.warn(`media-controller: art download failed: ${e.message}`);
+                console.warn(`media-controls: art download failed: ${e.message}`);
             return null;
         }
     }

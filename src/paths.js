@@ -12,5 +12,5 @@ import GLib from 'gi://GLib';
 /** @returns {Gio.File} the directory downloaded album art is cached in */
 export function artCacheDir() {
     return Gio.File.new_for_path(GLib.build_filenamev(
-        [GLib.get_user_cache_dir(), 'media-controller', 'art']));
+        [GLib.get_user_cache_dir(), 'media-controls', 'art']));
 }

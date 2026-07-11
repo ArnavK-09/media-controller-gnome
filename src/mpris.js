@@ -115,7 +115,7 @@ function asNumber(value) {
  * the reporting consistent and the logging sparse, as the review guidelines
  * ask. `context` names what failed; the trailing message comes from the error. */
 function logError(context, error) {
-    console.warn(`media-controller: ${context}: ${error.message}`);
+    console.warn(`media-controls: ${context}: ${error.message}`);
 }
 
 export const MprisPlayer = GObject.registerClass({

@@ -86,7 +86,7 @@ pack: schemas
 
 # Live extension logs. Ctrl-C to stop.
 logs:
-	journalctl -f -o cat /usr/bin/gnome-shell | grep -i --line-buffered "media-controller\|MediaController"
+	journalctl -f -o cat /usr/bin/gnome-shell | grep -i --line-buffered "media-controls\|MediaControls"
 
 clean:
 	rm -f $(SRC)/schemas/gschemas.compiled $(ZIP)

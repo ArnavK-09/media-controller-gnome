@@ -17,7 +17,7 @@ import {ScrollingLabel} from './scrollingLabel.js';
 import {loopIconName, nextLoopStatus, playPauseIconName, seekOffset,
     setToggleStyle} from './transport.js';
 
-const ROLE = 'media-controller';
+const ROLE = 'media-controls';
 
 /* `atEnd` positions are appended after everything already in that panel box —
  * for "far right" that means past the quick settings menu. */
@@ -383,7 +383,7 @@ class MediaIndicator extends PanelMenu.Button {
      * signal tracker disconnects them all when the actor is destroyed. */
 });
 
-export default class MediaControllerExtension extends Extension {
+export default class MediaControlsExtension extends Extension {
     enable() {
         this._settings = this.getSettings();
         this._artCache = new ArtCache();
