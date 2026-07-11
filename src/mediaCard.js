@@ -10,12 +10,14 @@ import GObject from 'gi://GObject';
 import Pango from 'gi://Pango';
 import St from 'gi://St';
 
-import {Slider} from 'resource:///org/gnome/shell/ui/slider.js';
-import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
+import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
+import { Slider } from 'resource:///org/gnome/shell/ui/slider.js';
 
-import {Equalizer} from './equalizer.js';
-import {US_PER_SECOND, loopIconName, nextLoopStatus, playPauseIconName,
-    seekOffset, setToggleStyle} from './transport.js';
+import { Equalizer } from './equalizer.js';
+import {
+    US_PER_SECOND, loopIconName, nextLoopStatus, playPauseIconName,
+    seekOffset, setToggleStyle
+} from './transport.js';
 
 const POSITION_POLL_SECONDS = 1;
 
@@ -283,30 +285,30 @@ export const MediaCard = GObject.registerClass({
     }
 
     _buildControls() {
-        /* The row is a stack, not a box: shuffle is pinned to the left edge,
-         * loop to the right, and the transport cluster is centred against the
-         * full card width — so it does not shift when an edge button comes or
-         * goes with the player's capabilities. */
-        const row = new St.Widget({
+        /* A box, not a BinLayout stack: shuffle packs against the left edge,
+         * loop against the right, and the expanding transport cluster centres
+         * itself in the space between them. (A BinLayout overlay does not
+         * apply the edge buttons' alignment and piles them onto the middle of
+         * the row, underneath the play button.) */
+        const row = new St.BoxLayout({
             style_class: 'mc-controls-row',
-            layout_manager: new Clutter.BinLayout(),
+            orientation: Clutter.Orientation.HORIZONTAL,
         });
 
         this._shuffleButton = iconButton('media-playlist-shuffle-symbolic',
             'mc-control-button mc-mode-button');
-        this._shuffleButton.x_align = Clutter.ActorAlign.START;
         this._shuffleButton.y_align = Clutter.ActorAlign.CENTER;
         this._shuffleButton.connect('clicked', () => this._toggleShuffle());
 
         this._loopButton = iconButton('media-playlist-repeat-symbolic',
             'mc-control-button mc-mode-button');
-        this._loopButton.x_align = Clutter.ActorAlign.END;
         this._loopButton.y_align = Clutter.ActorAlign.CENTER;
         this._loopButton.connect('clicked', () => this._cycleLoop());
 
         const controls = new St.BoxLayout({
             style_class: 'mc-card-controls',
             orientation: Clutter.Orientation.HORIZONTAL,
+            x_expand: true,
             x_align: Clutter.ActorAlign.CENTER,
             y_align: Clutter.ActorAlign.CENTER,
         });
