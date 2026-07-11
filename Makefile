@@ -55,7 +55,7 @@ pack: schemas
 		--extra-source=transport.js \
 		--extra-source=paths.js \
 		--extra-source=equalizer.js \
-		--extra-source=$(CURDIR)/LICENSE \
+		"--extra-source=$(CURDIR)/LICENSE" \
 		--schema=schemas/org.gnome.shell.extensions.media-controller.gschema.xml \
 		--force
 
