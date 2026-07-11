@@ -110,6 +110,14 @@ function asNumber(value) {
     return 0;
 }
 
+/* Every D-Bus call here can lose a race with the player leaving the bus, and
+ * they all fail the same way. Funnelling the warnings through one place keeps
+ * the reporting consistent and the logging sparse, as the review guidelines
+ * ask. `context` names what failed; the trailing message comes from the error. */
+function logError(context, error) {
+    console.warn(`media-controller: ${context}: ${error.message}`);
+}
+
 export const MprisPlayer = GObject.registerClass({
     Signals: {
         'changed': {},
@@ -141,7 +149,7 @@ export const MprisPlayer = GObject.registerClass({
             if (error) {
                 /* CANCELLED means destroy() ran while the init was in flight. */
                 if (!error.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
-                    console.warn(`media-controller: player proxy for ${busName}: ${error.message}`);
+                    logError(`player proxy for ${busName}`, error);
                 return;
             }
             this._playerProxy = proxy;
@@ -311,7 +319,7 @@ export const MprisPlayer = GObject.registerClass({
         try {
             this._playerProxy[`${method}Remote`](() => {});
         } catch (e) {
-            console.warn(`media-controller: ${method} failed: ${e.message}`);
+            logError(`${method} failed`, e);
         }
     }
 
@@ -337,7 +345,7 @@ export const MprisPlayer = GObject.registerClass({
         try {
             this._playerProxy.LoopStatus = status;
         } catch (e) {
-            console.warn(`media-controller: set LoopStatus failed: ${e.message}`);
+            logError('set LoopStatus failed', e);
         }
     }
 
@@ -347,7 +355,7 @@ export const MprisPlayer = GObject.registerClass({
         try {
             this._playerProxy.Shuffle = shuffle;
         } catch (e) {
-            console.warn(`media-controller: set Shuffle failed: ${e.message}`);
+            logError('set Shuffle failed', e);
         }
     }
 
@@ -357,7 +365,7 @@ export const MprisPlayer = GObject.registerClass({
         try {
             this._appProxy.RaiseRemote(() => {});
         } catch (e) {
-            console.warn(`media-controller: Raise failed: ${e.message}`);
+            logError('Raise failed', e);
         }
     }
 
@@ -401,7 +409,7 @@ export const MprisPlayer = GObject.registerClass({
         try {
             this._playerProxy.SeekRemote(offset, () => {});
         } catch (e) {
-            console.warn(`media-controller: relative seek failed: ${e.message}`);
+            logError('relative seek failed', e);
         }
     }
 
@@ -412,7 +420,7 @@ export const MprisPlayer = GObject.registerClass({
         if (!this._playerProxy || !this.canSeek)
             return;
 
-        const warn = e => console.warn(`media-controller: seek failed: ${e.message}`);
+        const warn = e => logError('seek failed', e);
 
         /* SetPosition needs a valid object path. Players that report a bogus
          * trackid (or none) get a relative Seek instead. */
