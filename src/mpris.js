@@ -78,10 +78,6 @@ const PlayerIface = `
   </interface>
 </node>`;
 
-const DBusProxy = Gio.DBusProxy.makeProxyWrapper(DBusIface);
-const MprisProxy = Gio.DBusProxy.makeProxyWrapper(MprisIface);
-const PlayerProxy = Gio.DBusProxy.makeProxyWrapper(PlayerIface);
-
 /** Unwrap a GLib.Variant coming out of an a{sv} without assuming its type. */
 function unwrap(variant) {
     if (!variant)
@@ -122,7 +118,6 @@ export const MprisPlayer = GObject.registerClass({
         super._init();
 
         this.busName = busName;
-        this._destroyed = false;
         this._cancellable = new Gio.Cancellable();
         this._iconCacheKey = null;
         this._iconCache = null;
@@ -134,11 +129,17 @@ export const MprisPlayer = GObject.registerClass({
         this._propsChangedId = 0;
         this._seekedId = 0;
 
+        /* The wrapper classes are built here rather than at module scope:
+         * modules stay loaded across disable/enable, so nothing GObject-related
+         * may be created at import time. */
+        const PlayerProxy = Gio.DBusProxy.makeProxyWrapper(PlayerIface);
+        const MprisProxy = Gio.DBusProxy.makeProxyWrapper(MprisIface);
+
         new PlayerProxy(Gio.DBus.session, busName, MPRIS_PATH, (proxy, error) => {
-            if (this._destroyed)
-                return;
             if (error) {
-                console.warn(`media-controller: player proxy for ${busName}: ${error.message}`);
+                /* CANCELLED means destroy() ran while the init was in flight. */
+                if (!error.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
+                    console.warn(`media-controller: player proxy for ${busName}: ${error.message}`);
                 return;
             }
             this._playerProxy = proxy;
@@ -152,10 +153,9 @@ export const MprisPlayer = GObject.registerClass({
         }, this._cancellable, Gio.DBusProxyFlags.NONE);
 
         new MprisProxy(Gio.DBus.session, busName, MPRIS_PATH, (proxy, error) => {
-            if (this._destroyed)
-                return;
             if (error) {
-                /* The app interface is optional in practice; not fatal. */
+                /* Cancelled on destroy — and the app interface is optional in
+                 * practice anyway; not fatal. */
                 return;
             }
             this._appProxy = proxy;
@@ -386,7 +386,6 @@ export const MprisPlayer = GObject.registerClass({
     }
 
     destroy() {
-        this._destroyed = true;
         this._cancellable.cancel();
 
         if (this._playerProxy) {
@@ -415,13 +414,14 @@ export const MprisManager = GObject.registerClass({
         this._players = new Map();
         this._playerSignals = new Map();
         this._active = null;
-        this._destroyed = false;
         this._cancellable = new Gio.Cancellable();
 
+        const DBusProxy = Gio.DBusProxy.makeProxyWrapper(DBusIface);
         this._dbusProxy = new DBusProxy(Gio.DBus.session,
             'org.freedesktop.DBus', '/org/freedesktop/DBus',
             (proxy, error) => {
-                if (this._destroyed || error)
+                /* Cancelled when destroy() beats the init to it. */
+                if (error)
                     return;
                 this._nameOwnerId = proxy.connectSignal('NameOwnerChanged',
                     (_p, _sender, [name, oldOwner, newOwner]) =>
@@ -439,15 +439,18 @@ export const MprisManager = GObject.registerClass({
     }
 
     _loadExistingPlayers() {
-        this._dbusProxy.ListNamesRemote(([names], error) => {
-            if (this._destroyed || error)
+        /* The result must not be destructured in the parameter list: it is null
+         * on error (including cancellation on destroy). */
+        this._dbusProxy.ListNamesRemote((result, error) => {
+            if (error)
                 return;
+            const [names] = result;
             for (const name of names) {
                 if (this._isPlayerName(name))
                     this._addPlayer(name);
             }
             this._selectActive();
-        });
+        }, this._cancellable);
     }
 
     _isPlayerName(name) {
@@ -536,7 +539,6 @@ export const MprisManager = GObject.registerClass({
     }
 
     destroy() {
-        this._destroyed = true;
         this._cancellable.cancel();
 
         if (this._dbusProxy && this._nameOwnerId)

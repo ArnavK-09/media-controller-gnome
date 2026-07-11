@@ -105,7 +105,6 @@ export const MediaCard = GObject.registerClass({
         this._dragPlayer = null;
         this._dragLength = 0;
         this._active = false;
-        this._destroyed = false;
         this._currentArtUrl = null;
         this._artGeneration = 0;
         this._artPath = null;
@@ -414,10 +413,11 @@ export const MediaCard = GObject.registerClass({
         if (!player)
             return;
         player.getPosition().then(position => {
-            /* The D-Bus round trip can outlive the card, a drag starting, or the
-             * player it was issued for — a late answer from the previous track
-             * would otherwise be painted onto this one's slider. */
-            if (this._destroyed || this._dragging || this._player !== player)
+            /* The D-Bus round trip can outlive a drag starting, the player it
+             * was issued for, or the card itself (destroy nulls `_player`) — a
+             * late answer from the previous track would otherwise be painted
+             * onto this one's slider. */
+            if (this._dragging || this._player !== player)
                 return;
             this._position = position;
             this._updateSlider();
@@ -490,7 +490,7 @@ export const MediaCard = GObject.registerClass({
             return;
 
         this._artCache.resolve(url).then(path => {
-            if (this._destroyed || generation !== this._artGeneration || !path)
+            if (generation !== this._artGeneration || !path)
                 return;
             this._artPath = path;
             this._applyArtStyle();
@@ -564,7 +564,10 @@ export const MediaCard = GObject.registerClass({
     }
 
     _onDestroy() {
-        this._destroyed = true;
+        /* Orphans any in-flight art download: its callback checks the
+         * generation and finds it stale. */
+        this._artGeneration++;
+
         if (this._timeoutId) {
             GLib.Source.remove(this._timeoutId);
             this._timeoutId = 0;

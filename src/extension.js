@@ -73,11 +73,12 @@ class MediaIndicator extends PanelMenu.Button {
         this._buildControls();
 
         this._card = new MediaCard(artCache, settings);
-        this._card.connect('activated', () => this.menu.close());
-        this._card.connect('open-preferences', () => {
-            this.menu.close();
-            extension.openPreferences();
-        });
+        this._card.connectObject(
+            'activated', () => this.menu.close(),
+            'open-preferences', () => {
+                this.menu.close();
+                extension.openPreferences();
+            }, this);
 
         this.menu.box.add_style_class_name('mc-card-menu');
         const item = new PopupMenu.PopupBaseMenuItem({
@@ -89,19 +90,21 @@ class MediaIndicator extends PanelMenu.Button {
         item.add_child(this._card);
         this.menu.addMenuItem(item);
 
-        this._menuOpenId = this.menu.connect('open-state-changed', (_menu, open) => {
+        this.menu.connectObject('open-state-changed', (_menu, open) => {
             this._card.setActive(open);
             if (open)
                 this._card.sync();
-        });
+        }, this);
 
-        this._managerId = this._manager.connect('changed', () => this.sync());
+        this._manager.connectObject('changed', () => this.sync(), this);
 
-        this._settingsIds = PANEL_KEYS.map(key =>
-            this._settings.connect(`changed::${key}`, () => {
-                this._readSettings();
-                this.sync();
-            }));
+        const onPanelKeyChanged = () => {
+            this._readSettings();
+            this.sync();
+        };
+        this._settings.connectObject(
+            ...PANEL_KEYS.flatMap(key => [`changed::${key}`, onPanelKeyChanged]),
+            this);
 
         this.sync();
     }
@@ -339,21 +342,8 @@ class MediaIndicator extends PanelMenu.Button {
         this._box.set_child_at_index(this._controlsBox, controlsFirst ? 0 : 1);
     }
 
-    destroy() {
-        if (this._managerId)
-            this._manager.disconnect(this._managerId);
-        this._managerId = 0;
-
-        if (this._menuOpenId)
-            this.menu.disconnect(this._menuOpenId);
-        this._menuOpenId = 0;
-
-        for (const id of this._settingsIds)
-            this._settings.disconnect(id);
-        this._settingsIds = [];
-
-        super.destroy();
-    }
+    /* No destroy() override: every connection above is owned by `this`, so the
+     * signal tracker disconnects them all when the actor is destroyed. */
 });
 
 export default class MediaControllerExtension extends Extension {
@@ -370,8 +360,8 @@ export default class MediaControllerExtension extends Extension {
          * the "hide when nothing is playing" state chosen during construction. */
         this._indicator.sync();
 
-        this._positionId = this._settings.connect('changed::panel-position',
-            () => this._reposition());
+        this._settings.connectObject('changed::panel-position',
+            () => this._reposition(), this);
     }
 
     _panelBoxes() {
@@ -410,9 +400,9 @@ export default class MediaControllerExtension extends Extension {
     }
 
     disable() {
-        if (this._positionId)
-            this._settings.disconnect(this._positionId);
-        this._positionId = 0;
+        /* The extension has no `destroy` signal, so unlike the indicator this
+         * owner needs the explicit disconnect. */
+        this._settings.disconnectObject(this);
 
         this._indicator?.destroy();
         this._indicator = null;
