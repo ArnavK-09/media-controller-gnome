@@ -1,4 +1,4 @@
-# Media Controller
+# Media Controls
 
 A GNOME Shell extension that puts whatever is currently playing into the top
 panel, with playback controls and an iOS-style now-playing card.

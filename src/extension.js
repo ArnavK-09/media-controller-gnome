@@ -54,7 +54,7 @@ const PANEL_KEYS = [
 const MediaIndicator = GObject.registerClass(
 class MediaIndicator extends PanelMenu.Button {
     _init(extension, settings, artCache, manager) {
-        super._init(0.5, 'Media Controller');
+        super._init(0.5, 'Media Controls');
 
         this._settings = settings;
         this._manager = manager;

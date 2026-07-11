@@ -1,10 +1,10 @@
 {
   "uuid": "media-controller@naimur",
-  "name": "Media Controller",
-  "description": "Show the currently playing track in the top panel with play/pause, next and previous buttons, and an iOS-style now-playing card. Works with any MPRIS-capable player (Spotify, Firefox, Chrome, VLC, Rhythmbox, …).",
+  "name": "Media Controls",
+  "description": "Show the currently playing media in the top panel with playback controls and an iOS-inspired now-playing card. Works with any MPRIS-compatible player, including Spotify, Firefox, Chrome, VLC, mpv, Rhythmbox, and more.",
   "shell-version": ["48", "49", "50"],
   "settings-schema": "org.gnome.shell.extensions.media-controller",
   "gettext-domain": "media-controller",
-  "version-name": "1.3",
+  "version-name": "1.4",
   "url": "https://github.com/naimur900/media-controller-gnome"
 }
