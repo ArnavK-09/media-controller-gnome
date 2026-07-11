@@ -65,6 +65,8 @@ const PlayerIface = `
       <arg type="x" direction="in" name="position"/>
     </method>
     <property name="PlaybackStatus" type="s" access="read"/>
+    <property name="LoopStatus" type="s" access="readwrite"/>
+    <property name="Shuffle" type="b" access="readwrite"/>
     <property name="Metadata" type="a{sv}" access="read"/>
     <property name="Position" type="x" access="read"/>
     <property name="CanPlay" type="b" access="read"/>
@@ -237,6 +239,28 @@ export const MprisPlayer = GObject.registerClass({
         return this._playerProxy?.CanSeek ?? false;
     }
 
+    /* LoopStatus and Shuffle are optional in MPRIS. Here `null` means the
+     * player does not implement the property at all, which the UI turns into
+     * "no button" — unlike the Can* fallbacks above, absence is a capability
+     * signal, not a value to guess. */
+    get loopStatus() {
+        const status = this._playerProxy?.LoopStatus;
+        return typeof status === 'string' ? status : null;
+    }
+
+    get canLoop() {
+        return this.loopStatus !== null;
+    }
+
+    get shuffle() {
+        const shuffle = this._playerProxy?.Shuffle;
+        return typeof shuffle === 'boolean' ? shuffle : null;
+    }
+
+    get canShuffle() {
+        return this.shuffle !== null;
+    }
+
     get canRaise() {
         return this._appProxy?.CanRaise ?? false;
     }
@@ -301,6 +325,30 @@ export const MprisPlayer = GObject.registerClass({
 
     previous() {
         this._call('Previous');
+    }
+
+    /* Property assignment on a GJS proxy updates the cached value at once and
+     * issues the D-Bus Properties.Set call asynchronously, so a sync() right
+     * after the click already paints the new state; players that reject the
+     * write correct it with their next PropertiesChanged. */
+    setLoopStatus(status) {
+        if (!this._playerProxy || !this.canLoop)
+            return;
+        try {
+            this._playerProxy.LoopStatus = status;
+        } catch (e) {
+            console.warn(`media-controller: set LoopStatus failed: ${e.message}`);
+        }
+    }
+
+    setShuffle(shuffle) {
+        if (!this._playerProxy || !this.canShuffle)
+            return;
+        try {
+            this._playerProxy.Shuffle = shuffle;
+        } catch (e) {
+            console.warn(`media-controller: set Shuffle failed: ${e.message}`);
+        }
     }
 
     raise() {

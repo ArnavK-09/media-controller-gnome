@@ -7,7 +7,7 @@ Works with any player that speaks MPRIS2 — Spotify, Firefox, Chrome, VLC,
 Rhythmbox, mpv, and so on.
 
 <p align="center">
-  <a href="https://extensions.gnome.org/extension/10372/system-monitor-panel/">
+  <a href="https://extensions.gnome.org/extension/10373/media-controller/">
     <img src="public/gnome-logo.png"
          alt="Install from GNOME Extensions"
          width="260">
@@ -15,7 +15,7 @@ Rhythmbox, mpv, and so on.
 </p>
 
 <p align="center">
-  <a href="https://extensions.gnome.org/extension/10372/system-monitor-panel/"><strong>Install from GNOME Extensions →</strong></a>
+  <a href="https://extensions.gnome.org/extension/10373/media-controller/"><strong>Install from GNOME Extensions →</strong></a>
 </p>
 
 <p align="center">
@@ -35,14 +35,20 @@ Rhythmbox, mpv, and so on.
 - **Scrolling text**, off by default: text too wide for that slot loops past it
   carousel-style instead of being ellipsized.
 - **Playback controls** in the panel: previous, skip backward, play/pause, skip
-  forward, next. Each button can be shown or hidden independently.
+  forward, next, plus optional shuffle and loop buttons. Each button can be
+  shown or hidden independently.
 - **Now-playing card** when you click the indicator: album art, a wrapping title,
   artist and album, a draggable seek bar with elapsed and remaining time, and
-  large transport controls including skip buttons.
+  large transport controls including skip buttons — with shuffle on the card's
+  left edge and loop on its right, aligned with the controls.
+- **Shuffle and loop** control the player directly: shuffle toggles on and off,
+  loop cycles between off, repeating the whole queue, and repeating one track,
+  and an engaged mode lights up in your accent color.
 - **Configurable panel position**: far left, left, center, right, or far right.
 - Follows the shell theme, including light/dark and your accent color.
 
-Skip buttons only appear for players that support seeking.
+Skip buttons only appear for players that support seeking; shuffle and loop
+only for players that expose them over MPRIS.
 
 ## Requirements
 
@@ -65,7 +71,7 @@ make prefs     # open the preferences window
 
 Or install directly from the official GNOME Extensions website:
 
-**https://extensions.gnome.org/extension/YOUR_EXTENSION_ID/**
+**https://extensions.gnome.org/extension/10373/media-controller/**
 
 ## Development
 
@@ -92,6 +98,7 @@ in on Wayland, because the shell caches ES modules for the life of the process.
 | `panel-position`                                  | `right`         | `far-left`, `left`, `center`, `right`, `far-right`      |
 | `show-previous` / `show-play-pause` / `show-next` | on              | Panel transport buttons                                 |
 | `show-seek-backward` / `show-seek-forward`        | off             | Panel skip buttons                                      |
+| `show-shuffle` / `show-loop`                      | off             | Panel shuffle and loop buttons                          |
 | `show-player-icon`                                | on              | Application icon in the panel                           |
 | `show-title` / `show-artist`                      | on / off        | Panel text                                              |
 | `panel-text-width`                                | 300             | Width of the panel text, in pixels                      |
@@ -103,8 +110,9 @@ in on Wayland, because the shell caches ES modules for the life of the process.
 | `card-show-art`                                   | on              | Album art in the card                                   |
 | `card-show-seek-bar`                              | on              | Seek bar in the card                                    |
 | `card-show-seek-buttons`                          | on              | Skip buttons in the card                                |
+| `card-show-shuffle` / `card-show-loop`            | on              | Shuffle and loop buttons on the card's edges            |
 | `seek-step-seconds`                               | 10              | How far the skip buttons jump, in seconds               |
-| `card-width`                                      | 400             | Card width in pixels                                    |
+| `card-width`                                      | 400             | Card width in pixels (400–560)                          |
 
 ## Layout
 

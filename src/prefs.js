@@ -124,6 +124,9 @@ export default class MediaControllerPreferences extends ExtensionPreferences {
             title: _('Playback controls'),
             description: _('Which buttons appear in the panel.'),
         });
+        buttons.add(this._switchRow(settings, 'show-shuffle',
+            _('Shuffle'),
+            _('Requires a player that supports shuffle.')));
         buttons.add(this._switchRow(settings, 'show-previous', _('Previous track')));
         buttons.add(this._switchRow(settings, 'show-seek-backward',
             _('Skip backward'),
@@ -133,6 +136,9 @@ export default class MediaControllerPreferences extends ExtensionPreferences {
             _('Skip forward'),
             _('Requires a player that supports seeking.')));
         buttons.add(this._switchRow(settings, 'show-next', _('Next track')));
+        buttons.add(this._switchRow(settings, 'show-loop',
+            _('Loop'),
+            _('Cycles between off, the whole queue, and one track. Requires a player that supports looping.')));
         page.add(buttons);
 
         const text = new Adw.PreferencesGroup({
@@ -187,12 +193,12 @@ export default class MediaControllerPreferences extends ExtensionPreferences {
             this._comboRow(settings, 'card-art-size', _('Album art size'),
                 ART_SIZES, artSizeLabels())));
         appearance.add(this._spinRow(settings, 'card-width',
-            _('Card width'), _('Measured in pixels.'), 280, 560, 10));
+            _('Card width'), _('Measured in pixels.'), 400, 560, 10));
         page.add(appearance);
 
         const playback = new Adw.PreferencesGroup({
             title: _('Playback'),
-            description: _('Controls for moving within the current track.'),
+            description: _('Optional controls the card offers alongside play, pause and track switching.'),
         });
         playback.add(this._switchRow(settings, 'card-show-seek-bar',
             _('Seek bar'),
@@ -204,6 +210,12 @@ export default class MediaControllerPreferences extends ExtensionPreferences {
             _('Skip amount'),
             _('How far the skip buttons jump, in seconds. Shared with the panel skip buttons.'),
             2, 20, 1));
+        playback.add(this._switchRow(settings, 'card-show-shuffle',
+            _('Shuffle button'),
+            _('Shown at the left edge of the controls. Requires a player that supports shuffle.')));
+        playback.add(this._switchRow(settings, 'card-show-loop',
+            _('Loop button'),
+            _('Shown at the right edge of the controls. Cycles between off, the whole queue, and one track.')));
         page.add(playback);
 
         return page;

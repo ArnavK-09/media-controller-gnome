@@ -152,11 +152,16 @@
 
 /* ---------- Controls ---------- */
 
+/* One stacked row: shuffle pinned to the left edge, loop to the right, the
+ * transport cluster centred against the full card width. */
+.mc-controls-row {
+  padding: 2px 0 0 0;
+}
+
 /* Buttons also carry .message-media-control, which the theme styles for hover,
  * active and insensitive states in both light and dark. */
 .mc-card-controls {
   spacing: 6px;
-  padding: 2px 0 0 0;
 }
 
 .mc-control-button {
@@ -178,4 +183,21 @@
 
 .mc-play-button StIcon {
   icon-size: 28px;
+}
+
+/* Shuffle and loop: quieter than the transport buttons, and square padding so
+ * the hover fill stays a circle around the smaller icon. */
+.mc-mode-button {
+  padding: 8px;
+}
+
+.mc-mode-button StIcon {
+  icon-size: 16px;
+}
+
+/* An engaged mode wears the desktop accent colour — the same source the
+ * equalizer bars and the seek slider use. Also applies to the panel's copies
+ * of these buttons. */
+.mc-mode-on StIcon {
+  color: -st-accent-color;
 }

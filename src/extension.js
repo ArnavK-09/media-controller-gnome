@@ -14,7 +14,8 @@ import {ArtCache} from './artCache.js';
 import {MediaCard} from './mediaCard.js';
 import {MprisManager} from './mpris.js';
 import {ScrollingLabel} from './scrollingLabel.js';
-import {playPauseIconName, seekOffset} from './transport.js';
+import {loopIconName, nextLoopStatus, playPauseIconName, seekOffset,
+    setToggleStyle} from './transport.js';
 
 const ROLE = 'media-controller';
 
@@ -36,6 +37,8 @@ const PANEL_KEYS = [
     'show-next',
     'show-seek-backward',
     'show-seek-forward',
+    'show-shuffle',
+    'show-loop',
     'show-player-icon',
     'show-title',
     'show-artist',
@@ -123,6 +126,8 @@ class MediaIndicator extends PanelMenu.Button {
             showNext: settings.get_boolean('show-next'),
             showSeekBackward: settings.get_boolean('show-seek-backward'),
             showSeekForward: settings.get_boolean('show-seek-forward'),
+            showShuffle: settings.get_boolean('show-shuffle'),
+            showLoop: settings.get_boolean('show-loop'),
             showPlayerIcon: settings.get_boolean('show-player-icon'),
             showTitle: settings.get_boolean('show-title'),
             showArtist: settings.get_boolean('show-artist'),
@@ -212,6 +217,8 @@ class MediaIndicator extends PanelMenu.Button {
             y_align: Clutter.ActorAlign.CENTER,
         });
 
+        this._shuffleButton = this._panelButton('media-playlist-shuffle-symbolic',
+            () => this._toggleShuffle());
         this._prevButton = this._panelButton('media-skip-backward-symbolic',
             () => this._manager.activePlayer?.previous());
         this._backButton = this._panelButton('media-seek-backward-symbolic',
@@ -222,18 +229,38 @@ class MediaIndicator extends PanelMenu.Button {
             () => this._skip(1));
         this._nextButton = this._panelButton('media-skip-forward-symbolic',
             () => this._manager.activePlayer?.next());
+        this._loopButton = this._panelButton('media-playlist-repeat-symbolic',
+            () => this._cycleLoop());
 
+        this._controlsBox.add_child(this._shuffleButton);
         this._controlsBox.add_child(this._prevButton);
         this._controlsBox.add_child(this._backButton);
         this._controlsBox.add_child(this._playButton);
         this._controlsBox.add_child(this._forwardButton);
         this._controlsBox.add_child(this._nextButton);
+        this._controlsBox.add_child(this._loopButton);
         this._box.add_child(this._controlsBox);
     }
 
     /** @param {number} direction -1 to rewind, 1 to skip ahead */
     _skip(direction) {
         this._manager.activePlayer?.seek(seekOffset(this._settings, direction));
+    }
+
+    _toggleShuffle() {
+        const player = this._manager.activePlayer;
+        if (!player)
+            return;
+        player.setShuffle(!player.shuffle);
+        this.sync();
+    }
+
+    _cycleLoop() {
+        const player = this._manager.activePlayer;
+        if (!player)
+            return;
+        player.setLoopStatus(nextLoopStatus(player.loopStatus));
+        this.sync();
     }
 
     _panelButton(iconName, onClick) {
@@ -313,11 +340,21 @@ class MediaIndicator extends PanelMenu.Button {
         this._backButton.visible = player.canSeek && prefs.showSeekBackward;
         this._forwardButton.visible = player.canSeek && prefs.showSeekForward;
 
+        /* Shuffle and loop are optional MPRIS properties; a player that does
+         * not implement them gets no button, whatever the setting says. */
+        this._shuffleButton.visible = prefs.showShuffle && player.canShuffle;
+        this._loopButton.visible = prefs.showLoop && player.canLoop;
+
         this._controlsBox.visible = this._prevButton.visible ||
             this._playButton.visible || this._nextButton.visible ||
-            this._backButton.visible || this._forwardButton.visible;
+            this._backButton.visible || this._forwardButton.visible ||
+            this._shuffleButton.visible || this._loopButton.visible;
 
         this._playButton.child.icon_name = playPauseIconName(player);
+        this._loopButton.child.icon_name = loopIconName(player.loopStatus);
+        setToggleStyle(this._shuffleButton, player.shuffle === true);
+        setToggleStyle(this._loopButton,
+            player.canLoop && player.loopStatus !== 'None');
 
         this._setSensitive(this._prevButton, player.canGoPrevious);
         this._setSensitive(this._nextButton, player.canGoNext);

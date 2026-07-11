@@ -14,7 +14,8 @@ import {Slider} from 'resource:///org/gnome/shell/ui/slider.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {Equalizer} from './equalizer.js';
-import {US_PER_SECOND, playPauseIconName, seekOffset} from './transport.js';
+import {US_PER_SECOND, loopIconName, nextLoopStatus, playPauseIconName,
+    seekOffset, setToggleStyle} from './transport.js';
 
 const POSITION_POLL_SECONDS = 1;
 
@@ -120,6 +121,8 @@ export const MediaCard = GObject.registerClass({
             this._settings.connect('changed::card-show-art', () => this.sync()),
             this._settings.connect('changed::card-show-seek-bar', () => this.sync()),
             this._settings.connect('changed::card-show-seek-buttons', () => this.sync()),
+            this._settings.connect('changed::card-show-shuffle', () => this.sync()),
+            this._settings.connect('changed::card-show-loop', () => this.sync()),
             this._settings.connect('changed::card-width', () => this._applyWidth()),
             this._settings.connect('changed::card-art-size', () => this._applyArtSize()),
         ];
@@ -280,10 +283,32 @@ export const MediaCard = GObject.registerClass({
     }
 
     _buildControls() {
+        /* The row is a stack, not a box: shuffle is pinned to the left edge,
+         * loop to the right, and the transport cluster is centred against the
+         * full card width — so it does not shift when an edge button comes or
+         * goes with the player's capabilities. */
+        const row = new St.Widget({
+            style_class: 'mc-controls-row',
+            layout_manager: new Clutter.BinLayout(),
+        });
+
+        this._shuffleButton = iconButton('media-playlist-shuffle-symbolic',
+            'mc-control-button mc-mode-button');
+        this._shuffleButton.x_align = Clutter.ActorAlign.START;
+        this._shuffleButton.y_align = Clutter.ActorAlign.CENTER;
+        this._shuffleButton.connect('clicked', () => this._toggleShuffle());
+
+        this._loopButton = iconButton('media-playlist-repeat-symbolic',
+            'mc-control-button mc-mode-button');
+        this._loopButton.x_align = Clutter.ActorAlign.END;
+        this._loopButton.y_align = Clutter.ActorAlign.CENTER;
+        this._loopButton.connect('clicked', () => this._cycleLoop());
+
         const controls = new St.BoxLayout({
             style_class: 'mc-card-controls',
             orientation: Clutter.Orientation.HORIZONTAL,
             x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
         });
 
         this._prevButton = iconButton('media-skip-backward-symbolic', 'mc-control-button');
@@ -303,7 +328,25 @@ export const MediaCard = GObject.registerClass({
         controls.add_child(this._playButton);
         controls.add_child(this._forwardButton);
         controls.add_child(this._nextButton);
-        this.add_child(controls);
+
+        row.add_child(this._shuffleButton);
+        row.add_child(controls);
+        row.add_child(this._loopButton);
+        this.add_child(row);
+    }
+
+    _toggleShuffle() {
+        if (!this._player)
+            return;
+        this._player.setShuffle(!this._player.shuffle);
+        this.sync();
+    }
+
+    _cycleLoop() {
+        if (!this._player)
+            return;
+        this._player.setLoopStatus(nextLoopStatus(this._player.loopStatus));
+        this.sync();
     }
 
     /**
@@ -509,6 +552,8 @@ export const MediaCard = GObject.registerClass({
             this._appButton.visible = false;
             this._backButton.visible = false;
             this._forwardButton.visible = false;
+            this._shuffleButton.visible = false;
+            this._loopButton.visible = false;
             this._equalizer.visible = false;
             this._equalizer.setPlaying(false);
             this._length = 0;
@@ -551,6 +596,17 @@ export const MediaCard = GObject.registerClass({
             player.canSeek;
         this._backButton.visible = showSkip;
         this._forwardButton.visible = showSkip;
+
+        /* Shuffle and loop are optional MPRIS properties; a player that does
+         * not implement them gets no button, whatever the setting says. */
+        this._shuffleButton.visible =
+            this._settings.get_boolean('card-show-shuffle') && player.canShuffle;
+        this._loopButton.visible =
+            this._settings.get_boolean('card-show-loop') && player.canLoop;
+        this._loopButton.child.icon_name = loopIconName(player.loopStatus);
+        setToggleStyle(this._shuffleButton, player.shuffle === true);
+        setToggleStyle(this._loopButton,
+            player.canLoop && player.loopStatus !== 'None');
 
         this._updateArt();
         this._updateSlider();

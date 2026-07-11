@@ -57,6 +57,18 @@
       <description>Only shown for players that support seeking. Skips by seek-step-seconds.</description>
     </key>
 
+    <key name="show-shuffle" type="b">
+      <default>false</default>
+      <summary>Show the shuffle button in the panel</summary>
+      <description>Only shown for players that support shuffle.</description>
+    </key>
+
+    <key name="show-loop" type="b">
+      <default>false</default>
+      <summary>Show the loop button in the panel</summary>
+      <description>Only shown for players that support looping. Cycles between off, the whole queue, and one track.</description>
+    </key>
+
     <key name="show-player-icon" type="b">
       <default>true</default>
       <summary>Show the player's application icon in the panel</summary>
@@ -135,6 +147,18 @@
       <summary>Show the skip-back and skip-forward buttons in the card</summary>
     </key>
 
+    <key name="card-show-shuffle" type="b">
+      <default>true</default>
+      <summary>Show the shuffle button in the card</summary>
+      <description>Only shown for players that support shuffle.</description>
+    </key>
+
+    <key name="card-show-loop" type="b">
+      <default>true</default>
+      <summary>Show the loop button in the card</summary>
+      <description>Only shown for players that support looping. Cycles between off, the whole queue, and one track.</description>
+    </key>
+
     <key name="seek-step-seconds" type="i">
       <default>10</default>
       <range min="2" max="20"/>
@@ -143,7 +167,7 @@
 
     <key name="card-width" type="i">
       <default>400</default>
-      <range min="280" max="560"/>
+      <range min="400" max="560"/>
       <summary>Card width in pixels</summary>
     </key>
 
