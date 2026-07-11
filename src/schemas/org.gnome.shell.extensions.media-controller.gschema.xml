@@ -25,7 +25,7 @@
 
     <key name="panel-position"
          enum="org.gnome.shell.extensions.media-controller.panel-position">
-      <default>'right'</default>
+      <default>'left'</default>
       <summary>Position in the top panel</summary>
       <description>Which panel box the indicator is placed in.</description>
     </key>
@@ -80,7 +80,7 @@
     </key>
 
     <key name="show-artist" type="b">
-      <default>false</default>
+      <default>true</default>
       <summary>Show the artist in the panel</summary>
     </key>
 
@@ -92,7 +92,7 @@
     </key>
 
     <key name="scroll-text" type="b">
-      <default>false</default>
+      <default>true</default>
       <summary>Scroll panel text that does not fit</summary>
       <description>Text wider than panel-text-width loops past it instead of being truncated.</description>
     </key>
@@ -104,7 +104,7 @@
     </key>
 
     <key name="scroll-loop" type="b">
-      <default>true</default>
+      <default>false</default>
       <summary>Keep scrolling the panel text</summary>
       <description>When false the text scrolls once per track and then rests, truncated with an ellipsis.</description>
     </key>
