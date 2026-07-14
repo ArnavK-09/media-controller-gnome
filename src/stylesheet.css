@@ -1,8 +1,8 @@
 /* Media Controls
  *
- * The card deliberately sets no colors of its own: it inherits the shell's
- * popup-menu background and foreground, so it follows the light/dark theme and
- * the user's accent color. Only geometry is defined here.
+ * The card pins its own background color but inherits the shell's popup-menu
+ * foreground, so text and icons still follow the theme and the user's accent
+ * color.
  */
 
 /* ---------- Panel indicator ---------- */
@@ -48,9 +48,11 @@
 
 /* ---------- Card container ---------- */
 
-/* .popup-menu-content supplies the background, border and shadow. */
+/* .popup-menu-content supplies the border and shadow; the background is fixed
+ * here rather than inherited from the theme. */
 .mc-card-menu {
   padding: 0;
+  background-color: #36363a;
 }
 
 .mc-card-item {
@@ -78,11 +80,13 @@
 }
 
 /* Width, height and border-radius follow the card-art-size setting, so they are
- * applied inline alongside the artwork's background-image. */
+ * applied inline alongside the artwork's background-image; the border is drawn
+ * with that same radius. Neutral grey at low opacity reads as a hairline on
+ * both light and dark themes. */
 .mc-art {
   background-color: rgba(127, 127, 127, 0.2);
   background-size: cover;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(85, 85, 85, 0.4);
 }
 
 .mc-card-text {
