@@ -90,16 +90,26 @@
 }
 
 .mc-card-text {
-  spacing: 1px;
+  spacing: 2px;
 }
 
 .mc-card-title {
   font-weight: 700;
   font-size: 1.05em;
+  color: #ffffff;
 }
 
-.mc-card-subtitle {
+.mc-card-artist {
+  font-weight: 500;
   font-size: 0.9em;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.mc-card-album {
+  font-weight: 400;
+  font-size: 0.8em;
+  letter-spacing: 0.2px;
+  color: rgba(255, 255, 255, 0.45);
 }
 
 .mc-card-actions {

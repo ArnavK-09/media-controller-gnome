@@ -158,20 +158,19 @@ export const MediaCard = GObject.registerClass({
             x_expand: true,
         });
         this._titleLabel = new St.Label({style_class: 'mc-card-title', text: _('Nothing playing')});
-        this._subtitleLabel = new St.Label({
-            style_class: 'mc-card-subtitle',
-            text: '',
-            opacity: DIM_OPACITY,
-        });
+        this._artistLabel = new St.Label({style_class: 'mc-card-artist', text: ''});
+        this._albumLabel = new St.Label({style_class: 'mc-card-album', text: ''});
         /* The card has a fixed width, so a long title wraps onto further lines
          * rather than being cut off. Breaking mid-word is the fallback for a
          * single word too long to fit on a line of its own. */
         this._titleLabel.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
         this._titleLabel.clutter_text.line_wrap = true;
         this._titleLabel.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
-        this._subtitleLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+        this._artistLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+        this._albumLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
         textBox.add_child(this._titleLabel);
-        textBox.add_child(this._subtitleLabel);
+        textBox.add_child(this._artistLabel);
+        textBox.add_child(this._albumLabel);
         header.add_child(textBox);
 
         /* A full-height column down the right edge: the gear pinned to the top
@@ -548,8 +547,10 @@ export const MediaCard = GObject.registerClass({
 
         if (!player) {
             this._titleLabel.text = _('Nothing playing');
-            this._subtitleLabel.text = '';
-            this._subtitleLabel.visible = false;
+            this._artistLabel.text = '';
+            this._artistLabel.visible = false;
+            this._albumLabel.text = '';
+            this._albumLabel.visible = false;
             this._seekBox.visible = false;
             this._appButton.visible = false;
             this._backButton.visible = false;
@@ -569,11 +570,11 @@ export const MediaCard = GObject.registerClass({
         const album = player.album;
 
         this._titleLabel.text = truncate(title, MAX_TITLE_CHARS);
-        const subtitle = artist && album && artist !== album
-            ? `${artist} — ${album}`
-            : artist || album;
-        this._subtitleLabel.text = subtitle;
-        this._subtitleLabel.visible = !!subtitle;
+        const showAlbum = !!album && album !== artist && album !== title;
+        this._artistLabel.text = artist || '';
+        this._artistLabel.visible = !!artist;
+        this._albumLabel.text = showAlbum ? album : '';
+        this._albumLabel.visible = showAlbum;
 
         this._playButton.child.icon_name = playPauseIconName(player);
 
