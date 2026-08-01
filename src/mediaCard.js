@@ -266,12 +266,10 @@ export const MediaCard = GObject.registerClass({
         this._positionLabel = new St.Label({
             style_class: 'mc-time',
             text: '0:00',
-            opacity: DIM_OPACITY,
         });
         this._remainingLabel = new St.Label({
             style_class: 'mc-time',
             text: '-0:00',
-            opacity: DIM_OPACITY,
         });
         this._remainingLabel.x_align = Clutter.ActorAlign.END;
         this._remainingLabel.x_expand = true;

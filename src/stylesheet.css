@@ -47,12 +47,9 @@
 }
 
 /* ---------- Card container ---------- */
-
-/* .popup-menu-content supplies the border and shadow; the background is fixed
- * here rather than inherited from the theme. */
 .mc-card-menu {
   padding: 0;
-  background-color: #36363a;
+  background-color: #222226;
 }
 
 .mc-card-item {
@@ -163,6 +160,8 @@
 .mc-time {
   font-size: 0.8em;
   font-feature-settings: "tnum";
+  font-weight: 500;
+  color: -st-accent-color;
 }
 
 /* ---------- Controls ---------- */
